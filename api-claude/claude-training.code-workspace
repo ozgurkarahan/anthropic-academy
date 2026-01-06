@@ -1,13 +1,7 @@
 {
 	"folders": [
 		{
-			"path": "."
-		},
-		{
-			"path": "../mcp-claude"
-		},
-		{
-			"path": "../claude-code"
+			"path": ".."
 		}
 	],
 	"settings": {
