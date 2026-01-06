@@ -1,0 +1,17 @@
+[
+  {
+    "task": "Write a Python function that parses an AWS ARN (Amazon Resource Name) and returns a dictionary containing its components: partition, service, region, account-id, and resource. For example, 'arn:aws:s3:us-east-1:123456789012:bucket/my-bucket' should return {'partition': 'aws', 'service': 's3', 'region': 'us-east-1', 'account_id': '123456789012', 'resource': 'bucket/my-bucket'}",
+    "format": "python",
+    "solution_criteria": "Function correctly splits ARN string on colons, handles ARNs with and without regions/account IDs, returns a dictionary with appropriate keys, and handles the resource portion which may contain additional delimiters"
+  },
+  {
+    "task": "Create a JSON object representing an AWS IAM policy that allows read-only access to a specific S3 bucket named 'company-logs'. The policy should allow s3:GetObject and s3:ListBucket actions only for this bucket.",
+    "format": "json",
+    "solution_criteria": "Valid IAM policy JSON structure with Version and Statement fields, correct Effect set to 'Allow', appropriate Action array containing S3 read actions, Resource field properly specifying the bucket ARN, and follows AWS IAM policy syntax"
+  },
+  {
+    "task": "Write a regular expression that validates AWS S3 bucket names according to AWS naming rules: 3-63 characters long, only lowercase letters, numbers, hyphens, and periods, must start and end with a letter or number, and cannot have consecutive periods or period-hyphen combinations.",
+    "format": "regex",
+    "solution_criteria": "Regex correctly validates length constraints (3-63 chars), allows only valid characters (lowercase a-z, 0-9, hyphens, periods), enforces start/end with alphanumeric characters, rejects consecutive periods, and rejects invalid patterns like '.-' or '-.'"
+  }
+]

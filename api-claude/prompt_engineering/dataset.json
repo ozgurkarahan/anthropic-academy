@@ -1,0 +1,49 @@
+[
+  {
+    "prompt_inputs": {
+      "height": "175",
+      "weight": "68",
+      "goal": "Marathon runner preparing for race in 3 weeks, training session at 6:30 AM lasting 90 minutes",
+      "restrictions": "No dairy products"
+    },
+    "solution_criteria": [
+      "Includes high carbohydrate meals throughout the day",
+      "Provides pre-workout meal/snack before 6:30 AM training",
+      "Excludes all dairy products",
+      "Covers breakfast, lunch, dinner and snacks for 1 day"
+    ],
+    "task_description": "Write a compact, concise 1 day meal plan for a single athlete",
+    "scenario": "Testing with a marathon runner needing high carbohydrate intake and specific timing around morning training session"
+  },
+  {
+    "prompt_inputs": {
+      "height": "178",
+      "weight": "92",
+      "goal": "Powerlifting cutting phase - lose 0.5kg per week while maintaining strength, target 2200 calories with 200g protein, 180g carbs, 70g fat",
+      "restrictions": "No dairy due to lactose intolerance"
+    },
+    "solution_criteria": [
+      "Total daily calories approximately 2200 (\u00b1100)",
+      "Protein content approximately 200g (\u00b110g)",
+      "Excludes all dairy products",
+      "Includes meal timing across the full day"
+    ],
+    "task_description": "Write a compact, concise 1 day meal plan for a single athlete",
+    "scenario": "Testing with a powerlifter in cutting phase requiring high protein, calorie restriction, and precise macro tracking"
+  },
+  {
+    "prompt_inputs": {
+      "height": "175",
+      "weight": "68",
+      "goal": "Maintain energy for morning and afternoon swim training sessions while supporting muscle recovery",
+      "restrictions": "No shellfish"
+    },
+    "solution_criteria": [
+      "Includes breakfast, lunch, dinner, and at least 2 snacks timed around training sessions",
+      "Provides adequate carbohydrates for energy and protein for recovery",
+      "Avoids shellfish"
+    ],
+    "task_description": "Write a compact, concise 1 day meal plan for a single athlete",
+    "scenario": "Testing with a teenage swimmer needing balanced nutrition across multiple training sessions throughout the day"
+  }
+]
