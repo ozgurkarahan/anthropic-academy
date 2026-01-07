@@ -23,7 +23,7 @@ Jupyter notebooks demonstrating various Claude API capabilities and patterns.
 | `prompt_engineering/` | Prompt engineering techniques and examples |
 | `tools/` | Tool use, structured data extraction, and text editor tool |
 | `thinking/` | Extended thinking (chain-of-thought) examples |
-| `images/` | Vision API - image and PDF processing |
+| `files/` | Vision API - image and PDF processing |
 | `promp-eval/` | Prompt evaluation approaches and grading |
 
 **Key notebooks:**
@@ -32,8 +32,8 @@ Jupyter notebooks demonstrating various Claude API capabilities and patterns.
 - `tools/001_tools.ipynb` - Tool use basics
 - `tools/002_structured_data.ipynb` - Structured data extraction
 - `thinking/001_thinking.ipynb` - Extended thinking examples
-- `images/002_images.ipynb` - Image processing with Claude
-- `images/002_pdf.ipynb` - PDF document processing
+- `files/002_images.ipynb` - Image processing with Claude
+- `files/002_pdf.ipynb` - PDF document processing
 
 ### claude-code/app_starter/
 
