@@ -1,0 +1,319 @@
+/* Workshop UI Custom Styles */
+
+/* General */
+body {
+    background-color: #f8f9fa;
+}
+
+/* Chat Container */
+.chat-container {
+    height: 400px;
+    overflow-y: auto;
+    background-color: #fff;
+    border-radius: 4px;
+}
+
+/* Message Bubbles */
+.message {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    max-width: 85%;
+}
+
+.message-user {
+    background-color: #007bff;
+    color: white;
+    margin-left: auto;
+}
+
+.message-assistant {
+    background-color: #e9ecef;
+    color: #212529;
+}
+
+.message-thinking {
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+    font-style: italic;
+}
+
+.message-tool {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.message-tool-result {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.message-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.message-role {
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+/* Message Actions */
+.message-actions {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.message:hover .message-actions {
+    opacity: 1;
+}
+
+/* Debug Panel */
+.debug-panel {
+    height: 500px;
+    overflow-y: auto;
+    background-color: #1e1e1e;
+    border-radius: 4px;
+}
+
+.debug-panel pre {
+    margin: 0;
+    padding: 1rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.debug-panel code {
+    color: #d4d4d4;
+    font-size: 0.85rem;
+}
+
+/* Drop Zone */
+.drop-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+}
+
+.drop-zone i {
+    color: #6c757d;
+}
+
+/* Uploaded File Preview */
+.uploaded-file {
+    display: inline-block;
+    margin: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background-color: #fff;
+    max-width: 150px;
+    text-align: center;
+    position: relative;
+}
+
+.uploaded-file img {
+    max-width: 100%;
+    max-height: 100px;
+    object-fit: contain;
+}
+
+.uploaded-file .remove-file {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.uploaded-file .file-name {
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 0.25rem;
+}
+
+/* Tool Checkboxes */
+.tool-checkbox {
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Cache Stats */
+.cache-stat {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.cache-stat.cache-hit {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.cache-stat.cache-miss {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Loading Overlay */
+#loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* Streaming Indicator */
+.streaming-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #007bff;
+    border-radius: 50%;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Accordion Customization */
+.accordion-button:not(.collapsed) {
+    background-color: #e7f1ff;
+    color: #0c63e4;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0, 0, 0, 0.125);
+}
+
+/* Code blocks in messages */
+.message pre {
+    background-color: #282c34;
+    color: #abb2bf;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.message code {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 0.125rem 0.25rem;
+    border-radius: 2px;
+}
+
+.message pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+/* Raw view mode */
+.raw-view {
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Thinking block collapsible */
+.thinking-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.thinking-toggle:hover {
+    text-decoration: underline;
+}
+
+.thinking-content {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .debug-panel {
+        height: 300px;
+        margin-top: 1rem;
+    }
+
+    .chat-container {
+        height: 300px;
+    }
+}
+
+/* Textarea auto-resize feel */
+textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+/* Custom scrollbar for webkit browsers */
+.chat-container::-webkit-scrollbar,
+.debug-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-container::-webkit-scrollbar-track,
+.debug-panel::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.chat-container::-webkit-scrollbar-thumb,
+.debug-panel::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover,
+.debug-panel::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* JSON Editor style */
+.font-monospace {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+    font-size: 0.875rem;
+}
