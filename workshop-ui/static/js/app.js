@@ -1037,10 +1037,51 @@ function deleteMessage(button) {
 }
 
 // ============================================================================
+// Sidebar Navigation
+// ============================================================================
+
+function initSidebar() {
+    const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+    const sections = document.querySelectorAll('.content-section');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // Get target section
+            const targetId = link.getAttribute('data-section');
+            const targetSection = document.getElementById(targetId);
+
+            if (!targetSection) return;
+
+            // Update active states
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+
+            sections.forEach(s => s.classList.remove('active'));
+            targetSection.classList.add('active');
+
+            // Store in localStorage for persistence
+            localStorage.setItem('activeSection', targetId);
+        });
+    });
+
+    // Restore last active section from localStorage
+    const savedSection = localStorage.getItem('activeSection');
+    if (savedSection) {
+        const savedLink = document.querySelector(`[data-section="${savedSection}"]`);
+        if (savedLink) {
+            savedLink.click();
+        }
+    }
+}
+
+// ============================================================================
 // Initialize All Sections
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    initSidebar();
     initConfig();
     initBasicChat();
     initPromptEngineering();
