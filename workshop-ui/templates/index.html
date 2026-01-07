@@ -48,6 +48,7 @@
                     <div class="col-md-4">
                         <label for="modelSelect" class="form-label">Model</label>
                         <select class="form-select" id="modelSelect">
+                            <option value="claude-4-5-sonnet" {% if default_model == 'claude-4-5-sonnet' %}selected{% endif %}>Claude 4.5 Sonnet (Heroku)</option>
                             <option value="claude-sonnet-4-20250514" {% if default_model == 'claude-sonnet-4-20250514' %}selected{% endif %}>Claude Sonnet 4</option>
                             <option value="claude-opus-4-20250514" {% if default_model == 'claude-opus-4-20250514' %}selected{% endif %}>Claude Opus 4</option>
                             <option value="claude-3-5-sonnet-20241022" {% if default_model == 'claude-3-5-sonnet-20241022' %}selected{% endif %}>Claude 3.5 Sonnet</option>

@@ -32,7 +32,7 @@ templates = Jinja2Templates(directory="templates")
 class ConfigModel(BaseModel):
     api_key: str
     base_url: str = "https://api.anthropic.com"
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "claude-4-5-sonnet"
 
 
 class MessageModel(BaseModel):
@@ -194,7 +194,7 @@ async def home(request: Request):
         "request": request,
         "default_api_key": os.getenv("ANTHROPIC_API_KEY", ""),
         "default_base_url": os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com"),
-        "default_model": os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+        "default_model": os.getenv("CLAUDE_MODEL", "claude-4-5-sonnet")
     })
 
 
@@ -206,7 +206,7 @@ async def get_sample_tools():
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Basic chat endpoint with streaming."""
+    """Basic chat endpoint - uses non-streaming for Heroku compatibility."""
     client = get_client(request.config)
 
     # Build request parameters
@@ -227,42 +227,41 @@ async def chat(request: ChatRequest):
         yield f"data: {json.dumps({'type': 'debug_request', 'data': debug_request})}\n\n"
 
         try:
-            with client.messages.stream(**params) as stream:
-                full_response = {"content": [], "model": "", "usage": {}}
+            # Use non-streaming API (Heroku doesn't support streaming)
+            response = client.messages.create(**params)
 
-                for event in stream:
-                    if hasattr(event, 'type'):
-                        if event.type == 'message_start':
-                            full_response["model"] = event.message.model
-                            full_response["id"] = event.message.id
-                        elif event.type == 'content_block_delta':
-                            if hasattr(event.delta, 'text'):
-                                yield f"data: {json.dumps({'type': 'text', 'data': event.delta.text})}\n\n"
-                        elif event.type == 'message_delta':
-                            if hasattr(event, 'usage'):
-                                full_response["usage"] = {
-                                    "input_tokens": getattr(event.usage, 'input_tokens', 0),
-                                    "output_tokens": getattr(event.usage, 'output_tokens', 0)
-                                }
+            # Extract text content
+            text_content = ""
+            for block in response.content:
+                if hasattr(block, 'text'):
+                    text_content += block.text
 
-                # Get final message
-                final_message = stream.get_final_message()
-                full_response["content"] = [
+            # Send text as a single chunk
+            yield f"data: {json.dumps({'type': 'text', 'data': text_content})}\n\n"
+
+            # Build full response for debug
+            full_response = {
+                "id": response.id,
+                "model": response.model,
+                "content": [
                     {"type": block.type, "text": block.text if hasattr(block, 'text') else str(block)}
-                    for block in final_message.content
-                ]
-                full_response["usage"] = {
-                    "input_tokens": final_message.usage.input_tokens,
-                    "output_tokens": final_message.usage.output_tokens
-                }
-                full_response["stop_reason"] = final_message.stop_reason
+                    for block in response.content
+                ],
+                "usage": {
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens
+                },
+                "stop_reason": response.stop_reason
+            }
 
-                # Send debug response
-                yield f"data: {json.dumps({'type': 'debug_response', 'data': full_response})}\n\n"
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            # Send debug response
+            yield f"data: {json.dumps({'type': 'debug_response', 'data': full_response})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except anthropic.APIError as e:
             yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'data': f'Error: {type(e).__name__}: {str(e)}'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -351,10 +350,11 @@ async def chat_with_tools(request: ToolChatRequest):
                     for block in response.content:
                         if block.type == "tool_use":
                             result = execute_tool(block.name, block.input)
+                            # Use string content format for tool results
                             tool_result = {
                                 "type": "tool_result",
                                 "tool_use_id": block.id,
-                                "content": result
+                                "content": str(result)
                             }
                             tool_results.append(tool_result)
                             yield f"data: {json.dumps({'type': 'tool_result', 'data': {'tool_use_id': block.id, 'name': block.name, 'result': result}})}\n\n"
