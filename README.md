@@ -25,6 +25,8 @@ Jupyter notebooks demonstrating various Claude API capabilities and patterns.
 | `thinking/` | Extended thinking (chain-of-thought) examples |
 | `files/` | Vision API - image and PDF processing |
 | `promp-eval/` | Prompt evaluation approaches and grading |
+| `prompt-caching/` | Prompt caching for optimizing API costs |
+| `code-file-api/` | Code execution and file API examples |
 
 **Key notebooks:**
 - `api-request/001-apirequest.ipynb` - Getting started with the Claude API
@@ -34,6 +36,8 @@ Jupyter notebooks demonstrating various Claude API capabilities and patterns.
 - `thinking/001_thinking.ipynb` - Extended thinking examples
 - `files/002_images.ipynb` - Image processing with Claude
 - `files/002_pdf.ipynb` - PDF document processing
+- `prompt-caching/003_caching.ipynb` - Prompt caching for cost optimization
+- `code-file-api/005_code_execution.ipynb` - Code execution examples
 
 ### claude-code/app_starter/
 
