@@ -14,523 +14,508 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="container-fluid py-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col">
-                <h1 class="display-6"><i class="bi bi-robot"></i> Claude API Workshop UI</h1>
-                <p class="text-muted">Interactive testing interface for Claude API features</p>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h5><i class="bi bi-robot"></i> Workshop UI</h5>
             </div>
-        </div>
+            <ul class="sidebar-nav">
+                <li class="nav-item">
+                    <a href="#" class="nav-link active" data-section="chatSection">
+                        <i class="bi bi-chat-dots"></i> Basic Chat
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="promptSection">
+                        <i class="bi bi-sliders"></i> Prompt Engineering
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="toolsSection">
+                        <i class="bi bi-tools"></i> Tool Use
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="filesSection">
+                        <i class="bi bi-file-earmark-image"></i> File Upload
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="thinkingSection">
+                        <i class="bi bi-lightbulb"></i> Extended Thinking
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="cachingSection">
+                        <i class="bi bi-database"></i> Prompt Caching
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="structuredSection">
+                        <i class="bi bi-braces"></i> Structured Data
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <button class="btn btn-sm btn-outline-light w-100" data-bs-toggle="collapse" data-bs-target="#configCollapse">
+                    <i class="bi bi-gear"></i> Configuration
+                </button>
+            </div>
+        </nav>
 
-        <!-- Configuration Section (Always Visible) -->
-        <div class="card mb-4 border-primary">
-            <div class="card-header bg-primary text-white">
-                <i class="bi bi-gear-fill"></i> Configuration
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="apiKey" class="form-label">API Key</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="apiKey"
-                                   value="{{ default_api_key }}" placeholder="sk-ant-...">
-                            <button class="btn btn-outline-secondary" type="button" id="toggleApiKey">
-                                <i class="bi bi-eye"></i>
-                            </button>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Configuration Panel (Collapsible) -->
+            <div class="collapse show" id="configCollapse">
+                <div class="config-panel">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="apiKey" class="form-label">API Key</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" class="form-control" id="apiKey"
+                                       value="{{ default_api_key }}" placeholder="sk-ant-...">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleApiKey">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label for="baseUrl" class="form-label">Base URL</label>
-                        <input type="text" class="form-control" id="baseUrl"
-                               value="{{ default_base_url }}" placeholder="https://api.anthropic.com">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="modelSelect" class="form-label">Model</label>
-                        <select class="form-select" id="modelSelect">
-                            <option value="claude-4-5-sonnet" {% if default_model == 'claude-4-5-sonnet' %}selected{% endif %}>Claude 4.5 Sonnet (Heroku)</option>
-                            <option value="claude-sonnet-4-20250514" {% if default_model == 'claude-sonnet-4-20250514' %}selected{% endif %}>Claude Sonnet 4</option>
-                            <option value="claude-opus-4-20250514" {% if default_model == 'claude-opus-4-20250514' %}selected{% endif %}>Claude Opus 4</option>
-                            <option value="claude-3-5-sonnet-20241022" {% if default_model == 'claude-3-5-sonnet-20241022' %}selected{% endif %}>Claude 3.5 Sonnet</option>
-                            <option value="claude-3-5-haiku-20241022" {% if default_model == 'claude-3-5-haiku-20241022' %}selected{% endif %}>Claude 3.5 Haiku</option>
-                        </select>
-                        <input type="text" class="form-control mt-2" id="customModel"
-                               placeholder="Or enter custom model ID">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content - Accordion Sections -->
-        <div class="accordion" id="mainAccordion">
-
-            <!-- 1. Basic Chat Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#chatSection" aria-expanded="true">
-                        <i class="bi bi-chat-dots me-2"></i> 1. Basic Chat
-                    </button>
-                </h2>
-                <div id="chatSection" class="accordion-collapse collapse show" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <!-- Chat Messages -->
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span>Conversation</span>
-                                        <div>
-                                            <button class="btn btn-sm btn-outline-secondary me-2" id="toggleChatView">
-                                                <i class="bi bi-code-slash"></i> Raw
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" id="clearChat">
-                                                <i class="bi bi-trash"></i> Clear
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="card-body chat-container" id="chatMessages">
-                                        <div class="text-muted text-center py-5">
-                                            <i class="bi bi-chat-dots fs-1"></i>
-                                            <p>Start a conversation with Claude</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Input -->
-                                <div class="input-group">
-                                    <textarea class="form-control" id="chatInput" rows="2"
-                                              placeholder="Type your message..."></textarea>
-                                    <button class="btn btn-primary" id="sendChat">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <!-- Debug Panel -->
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="chatDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-md-4">
+                            <label for="baseUrl" class="form-label">Base URL</label>
+                            <input type="text" class="form-control form-control-sm" id="baseUrl"
+                                   value="{{ default_base_url }}" placeholder="https://api.anthropic.com">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="modelSelect" class="form-label">Model</label>
+                            <select class="form-select form-select-sm" id="modelSelect">
+                                <option value="claude-4-5-sonnet" {% if default_model == 'claude-4-5-sonnet' %}selected{% endif %}>Claude 4.5 Sonnet (Heroku)</option>
+                                <option value="claude-sonnet-4-20250514" {% if default_model == 'claude-sonnet-4-20250514' %}selected{% endif %}>Claude Sonnet 4</option>
+                                <option value="claude-opus-4-20250514" {% if default_model == 'claude-opus-4-20250514' %}selected{% endif %}>Claude Opus 4</option>
+                                <option value="claude-3-5-sonnet-20241022" {% if default_model == 'claude-3-5-sonnet-20241022' %}selected{% endif %}>Claude 3.5 Sonnet</option>
+                                <option value="claude-3-5-haiku-20241022" {% if default_model == 'claude-3-5-haiku-20241022' %}selected{% endif %}>Claude 3.5 Haiku</option>
+                            </select>
+                            <input type="text" class="form-control form-control-sm mt-1" id="customModel"
+                                   placeholder="Or enter custom model ID">
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 2. Prompt Engineering Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#promptSection">
-                        <i class="bi bi-sliders me-2"></i> 2. Prompt Engineering
-                    </button>
-                </h2>
-                <div id="promptSection" class="accordion-collapse collapse" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="card mb-3">
-                                    <div class="card-header">System Prompt & Parameters</div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label for="systemPrompt" class="form-label">System Prompt</label>
-                                            <textarea class="form-control" id="systemPrompt" rows="4"
-                                                      placeholder="You are a helpful assistant..."></textarea>
-                                        </div>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <label for="temperature" class="form-label">
-                                                    Temperature: <span id="tempValue">1.0</span>
-                                                </label>
-                                                <input type="range" class="form-range" id="temperature"
-                                                       min="0" max="1" step="0.1" value="1.0">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label for="maxTokens" class="form-label">Max Tokens</label>
-                                                <input type="number" class="form-control" id="maxTokens"
-                                                       value="4096" min="1" max="32000">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Chat area for prompt engineering -->
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span>Conversation</span>
-                                        <button class="btn btn-sm btn-outline-danger" id="clearPromptChat">
+            <!-- Content Sections -->
+            <div class="content-area">
+                <!-- 1. Basic Chat Section -->
+                <section id="chatSection" class="content-section active">
+                    <div class="section-header">
+                        <h4><i class="bi bi-chat-dots"></i> Basic Chat</h4>
+                        <p class="text-muted mb-0">Simple conversation with Claude</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Conversation</span>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-secondary me-2" id="toggleChatView">
+                                            <i class="bi bi-code-slash"></i> Raw
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" id="clearChat">
                                             <i class="bi bi-trash"></i> Clear
                                         </button>
                                     </div>
-                                    <div class="card-body chat-container" id="promptChatMessages">
-                                        <div class="text-muted text-center py-5">
-                                            <i class="bi bi-sliders fs-1"></i>
-                                            <p>Test your prompts here</p>
-                                        </div>
-                                    </div>
                                 </div>
-                                <div class="input-group">
-                                    <textarea class="form-control" id="promptChatInput" rows="2"
-                                              placeholder="Type your message..."></textarea>
-                                    <button class="btn btn-primary" id="sendPromptChat">
-                                        <i class="bi bi-send"></i>
-                                    </button>
+                                <div class="card-body chat-container" id="chatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-chat-dots fs-1"></i>
+                                        <p>Start a conversation with Claude</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-lg-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="promptDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="chatInput" rows="2"
+                                          placeholder="Type your message..."></textarea>
+                                <button class="btn btn-primary" id="sendChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="chatDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <!-- 3. Tool Use Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#toolsSection">
-                        <i class="bi bi-tools me-2"></i> 3. Tool Use
-                    </button>
-                </h2>
-                <div id="toolsSection" class="accordion-collapse collapse" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <!-- Tool Selection -->
-                                <div class="card mb-3">
-                                    <div class="card-header">Available Tools</div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">Sample Tools</label>
-                                            <div id="sampleToolsContainer">
-                                                <!-- Will be populated by JS -->
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="customToolsEditor" class="form-label">
-                                                Custom Tools (JSON Array)
-                                                <button class="btn btn-sm btn-link" id="loadSampleTool">
-                                                    Load Sample
-                                                </button>
+                <!-- 2. Prompt Engineering Section -->
+                <section id="promptSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-sliders"></i> Prompt Engineering</h4>
+                        <p class="text-muted mb-0">Test system prompts, temperature, and output controls</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">System Prompt & Parameters</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="systemPrompt" class="form-label">System Prompt</label>
+                                        <textarea class="form-control" id="systemPrompt" rows="3"
+                                                  placeholder="You are a helpful assistant..."></textarea>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="temperature" class="form-label">
+                                                Temperature: <span id="tempValue">1.0</span>
                                             </label>
-                                            <textarea class="form-control font-monospace" id="customToolsEditor"
-                                                      rows="8" placeholder='[{"name": "my_tool", "description": "...", "input_schema": {...}}]'></textarea>
+                                            <input type="range" class="form-range" id="temperature"
+                                                   min="0" max="1" step="0.1" value="1.0">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="maxTokens" class="form-label">Max Tokens</label>
+                                            <input type="number" class="form-control form-control-sm" id="maxTokens"
+                                                   value="4096" min="1" max="32000">
                                         </div>
                                     </div>
                                 </div>
-                                <!-- Chat area -->
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span>Conversation</span>
-                                        <button class="btn btn-sm btn-outline-danger" id="clearToolsChat">
-                                            <i class="bi bi-trash"></i> Clear
-                                        </button>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Conversation</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearPromptChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="promptChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-sliders fs-1"></i>
+                                        <p>Test your prompts here</p>
                                     </div>
-                                    <div class="card-body chat-container" id="toolsChatMessages">
-                                        <div class="text-muted text-center py-5">
-                                            <i class="bi bi-tools fs-1"></i>
-                                            <p>Test tool use with Claude</p>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="promptChatInput" rows="2"
+                                          placeholder="Type your message..."></textarea>
+                                <button class="btn btn-primary" id="sendPromptChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="promptDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. Tool Use Section -->
+                <section id="toolsSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-tools"></i> Tool Use</h4>
+                        <p class="text-muted mb-0">Test Claude's tool calling capabilities</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">Available Tools</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Sample Tools</label>
+                                        <div id="sampleToolsContainer">
+                                            <!-- Will be populated by JS -->
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="customToolsEditor" class="form-label">
+                                            Custom Tools (JSON Array)
+                                            <button class="btn btn-sm btn-link" id="loadSampleTool">
+                                                Load Sample
+                                            </button>
+                                        </label>
+                                        <textarea class="form-control font-monospace" id="customToolsEditor"
+                                                  rows="6" placeholder='[{"name": "my_tool", "description": "...", "input_schema": {...}}]'></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Conversation</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearToolsChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="toolsChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-tools fs-1"></i>
+                                        <p>Test tool use with Claude</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="toolsChatInput" rows="2"
+                                          placeholder="Try: What's 25 * 17? or What's the weather in Paris?"></textarea>
+                                <button class="btn btn-primary" id="sendToolsChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="toolsDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. File Upload Section -->
+                <section id="filesSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-file-earmark-image"></i> File Upload</h4>
+                        <p class="text-muted mb-0">Upload images and PDFs to analyze with Claude</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">Upload Files</div>
+                                <div class="card-body">
+                                    <div class="drop-zone" id="dropZone">
+                                        <i class="bi bi-cloud-arrow-up fs-1"></i>
+                                        <p>Drag & drop files here or click to browse</p>
+                                        <small class="text-muted">Supported: Images (PNG, JPG, GIF, WebP) and PDFs</small>
+                                        <input type="file" id="fileInput" class="d-none"
+                                               accept="image/*,.pdf" multiple>
+                                    </div>
+                                    <div id="uploadedFiles" class="mt-3">
+                                        <!-- Uploaded files will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Conversation</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearFilesChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="filesChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-file-earmark-image fs-1"></i>
+                                        <p>Upload files and ask Claude about them</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="filesChatInput" rows="2"
+                                          placeholder="Ask about the uploaded files..."></textarea>
+                                <button class="btn btn-primary" id="sendFilesChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="filesDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. Extended Thinking Section -->
+                <section id="thinkingSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-lightbulb"></i> Extended Thinking</h4>
+                        <p class="text-muted mb-0">See Claude's reasoning process for complex questions</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">Thinking Configuration</div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label for="budgetTokens" class="form-label">Budget Tokens</label>
+                                            <input type="number" class="form-control form-control-sm" id="budgetTokens"
+                                                   value="10000" min="1024" max="100000">
+                                            <small class="text-muted">Tokens allocated for thinking</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="thinkingMaxTokens" class="form-label">Max Output Tokens</label>
+                                            <input type="number" class="form-control form-control-sm" id="thinkingMaxTokens"
+                                                   value="16000" min="1" max="64000">
                                         </div>
                                     </div>
                                 </div>
-                                <div class="input-group">
-                                    <textarea class="form-control" id="toolsChatInput" rows="2"
-                                              placeholder="Try: What's 25 * 17? or What's the weather in Paris?"></textarea>
-                                    <button class="btn btn-primary" id="sendToolsChat">
-                                        <i class="bi bi-send"></i>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Conversation</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearThinkingChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="thinkingChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-lightbulb fs-1"></i>
+                                        <p>Ask complex questions to see Claude's thinking</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="thinkingChatInput" rows="2"
+                                          placeholder="Ask a complex question that requires reasoning..."></textarea>
+                                <button class="btn btn-primary" id="sendThinkingChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="thinkingDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. Prompt Caching Section -->
+                <section id="cachingSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-database"></i> Prompt Caching</h4>
+                        <p class="text-muted mb-0">Test caching to reduce latency and costs</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">Caching Configuration</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="cacheSystemPrompt" class="form-label">System Prompt (to cache)</label>
+                                        <textarea class="form-control" id="cacheSystemPrompt" rows="3"
+                                                  placeholder="Enter a long system prompt to cache..."></textarea>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="enableCaching" checked>
+                                        <label class="form-check-label" for="enableCaching">
+                                            Enable prompt caching (ephemeral cache control)
+                                        </label>
+                                    </div>
+                                    <div id="cacheStats">
+                                        <!-- Cache stats will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Conversation</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearCachingChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="cachingChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-database fs-1"></i>
+                                        <p>Test prompt caching - watch cache stats</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="cachingChatInput" rows="2"
+                                          placeholder="Send multiple messages to see caching in action..."></textarea>
+                                <button class="btn btn-primary" id="sendCachingChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="cachingDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. Structured Data Section -->
+                <section id="structuredSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-braces"></i> Structured Data Output</h4>
+                        <p class="text-muted mb-0">Extract structured JSON from text using schemas</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    Output Schema
+                                    <button class="btn btn-sm btn-link" id="loadSampleSchema">Load Sample</button>
+                                </div>
+                                <div class="card-body">
+                                    <textarea class="form-control font-monospace" id="outputSchema" rows="8"
+                                              placeholder='{"type": "object", "properties": {...}, "required": [...]}'></textarea>
+                                </div>
+                            </div>
+                            <div class="card mb-3">
+                                <div class="card-header">Extract Structured Data</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="structuredInput" class="form-label">Input Text</label>
+                                        <textarea class="form-control" id="structuredInput" rows="3"
+                                                  placeholder="Enter text to extract structured data from..."></textarea>
+                                    </div>
+                                    <button class="btn btn-primary" id="extractStructured">
+                                        <i class="bi bi-braces"></i> Extract
                                     </button>
                                 </div>
                             </div>
-                            <div class="col-lg-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="toolsDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
+                            <div class="card mb-3">
+                                <div class="card-header">Structured Output</div>
+                                <div class="card-body">
+                                    <pre id="structuredOutput"><code class="language-json">// Extracted data will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="structuredDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
-
-            <!-- 4. File Upload Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#filesSection">
-                        <i class="bi bi-file-earmark-image me-2"></i> 4. File Upload (Images & PDFs)
-                    </button>
-                </h2>
-                <div id="filesSection" class="accordion-collapse collapse" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <!-- File Upload Area -->
-                                <div class="card mb-3">
-                                    <div class="card-header">Upload Files</div>
-                                    <div class="card-body">
-                                        <div class="drop-zone" id="dropZone">
-                                            <i class="bi bi-cloud-arrow-up fs-1"></i>
-                                            <p>Drag & drop files here or click to browse</p>
-                                            <small class="text-muted">Supported: Images (PNG, JPG, GIF, WebP) and PDFs</small>
-                                            <input type="file" id="fileInput" class="d-none"
-                                                   accept="image/*,.pdf" multiple>
-                                        </div>
-                                        <div id="uploadedFiles" class="mt-3">
-                                            <!-- Uploaded files will appear here -->
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Chat area -->
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span>Conversation</span>
-                                        <button class="btn btn-sm btn-outline-danger" id="clearFilesChat">
-                                            <i class="bi bi-trash"></i> Clear
-                                        </button>
-                                    </div>
-                                    <div class="card-body chat-container" id="filesChatMessages">
-                                        <div class="text-muted text-center py-5">
-                                            <i class="bi bi-file-earmark-image fs-1"></i>
-                                            <p>Upload files and ask Claude about them</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="input-group">
-                                    <textarea class="form-control" id="filesChatInput" rows="2"
-                                              placeholder="Ask about the uploaded files..."></textarea>
-                                    <button class="btn btn-primary" id="sendFilesChat">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="filesDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 5. Extended Thinking Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#thinkingSection">
-                        <i class="bi bi-lightbulb me-2"></i> 5. Extended Thinking
-                    </button>
-                </h2>
-                <div id="thinkingSection" class="accordion-collapse collapse" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="card mb-3">
-                                    <div class="card-header">Thinking Configuration</div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <label for="budgetTokens" class="form-label">Budget Tokens</label>
-                                                <input type="number" class="form-control" id="budgetTokens"
-                                                       value="10000" min="1024" max="100000">
-                                                <small class="text-muted">Tokens allocated for thinking process</small>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label for="thinkingMaxTokens" class="form-label">Max Output Tokens</label>
-                                                <input type="number" class="form-control" id="thinkingMaxTokens"
-                                                       value="16000" min="1" max="64000">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Chat area -->
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span>Conversation</span>
-                                        <button class="btn btn-sm btn-outline-danger" id="clearThinkingChat">
-                                            <i class="bi bi-trash"></i> Clear
-                                        </button>
-                                    </div>
-                                    <div class="card-body chat-container" id="thinkingChatMessages">
-                                        <div class="text-muted text-center py-5">
-                                            <i class="bi bi-lightbulb fs-1"></i>
-                                            <p>Ask complex questions to see Claude's thinking</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="input-group">
-                                    <textarea class="form-control" id="thinkingChatInput" rows="2"
-                                              placeholder="Ask a complex question that requires reasoning..."></textarea>
-                                    <button class="btn btn-primary" id="sendThinkingChat">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="thinkingDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 6. Prompt Caching Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#cachingSection">
-                        <i class="bi bi-database me-2"></i> 6. Prompt Caching
-                    </button>
-                </h2>
-                <div id="cachingSection" class="accordion-collapse collapse" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="card mb-3">
-                                    <div class="card-header">Caching Configuration</div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label for="cacheSystemPrompt" class="form-label">System Prompt (to cache)</label>
-                                            <textarea class="form-control" id="cacheSystemPrompt" rows="4"
-                                                      placeholder="Enter a long system prompt to cache..."></textarea>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="enableCaching" checked>
-                                            <label class="form-check-label" for="enableCaching">
-                                                Enable prompt caching (ephemeral cache control)
-                                            </label>
-                                        </div>
-                                        <div class="mt-3" id="cacheStats">
-                                            <!-- Cache stats will appear here -->
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Chat area -->
-                                <div class="card mb-3">
-                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                        <span>Conversation</span>
-                                        <button class="btn btn-sm btn-outline-danger" id="clearCachingChat">
-                                            <i class="bi bi-trash"></i> Clear
-                                        </button>
-                                    </div>
-                                    <div class="card-body chat-container" id="cachingChatMessages">
-                                        <div class="text-muted text-center py-5">
-                                            <i class="bi bi-database fs-1"></i>
-                                            <p>Test prompt caching - watch cache stats</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="input-group">
-                                    <textarea class="form-control" id="cachingChatInput" rows="2"
-                                              placeholder="Send multiple messages to see caching in action..."></textarea>
-                                    <button class="btn btn-primary" id="sendCachingChat">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="cachingDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 7. Structured Data Section -->
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                            data-bs-target="#structuredSection">
-                        <i class="bi bi-braces me-2"></i> 7. Structured Data Output
-                    </button>
-                </h2>
-                <div id="structuredSection" class="accordion-collapse collapse" data-bs-parent="#mainAccordion">
-                    <div class="accordion-body">
-                        <div class="row">
-                            <div class="col-lg-8">
-                                <div class="card mb-3">
-                                    <div class="card-header">
-                                        Output Schema
-                                        <button class="btn btn-sm btn-link" id="loadSampleSchema">Load Sample</button>
-                                    </div>
-                                    <div class="card-body">
-                                        <textarea class="form-control font-monospace" id="outputSchema" rows="10"
-                                                  placeholder='{"type": "object", "properties": {...}, "required": [...]}'></textarea>
-                                    </div>
-                                </div>
-                                <!-- Input and Output -->
-                                <div class="card mb-3">
-                                    <div class="card-header">Extract Structured Data</div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label for="structuredInput" class="form-label">Input Text</label>
-                                            <textarea class="form-control" id="structuredInput" rows="4"
-                                                      placeholder="Enter text to extract structured data from..."></textarea>
-                                        </div>
-                                        <button class="btn btn-primary" id="extractStructured">
-                                            <i class="bi bi-braces"></i> Extract
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="card mb-3">
-                                    <div class="card-header">Structured Output</div>
-                                    <div class="card-body">
-                                        <pre id="structuredOutput"><code class="language-json">// Extracted data will appear here</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <i class="bi bi-bug"></i> Debug Panel
-                                    </div>
-                                    <div class="card-body debug-panel" id="structuredDebug">
-                                        <pre><code class="language-json">// Request/Response will appear here</code></pre>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div><!-- End accordion -->
-
-    </div><!-- End container -->
+        </main>
+    </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="d-none">
