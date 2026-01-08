@@ -573,3 +573,170 @@ textarea {
     background-color: #f8f9fa;
     font-weight: 500;
 }
+
+/* ============================================================================
+   Prompt Evaluation Section
+   ============================================================================ */
+
+/* Eval stat cards */
+.eval-stat-card {
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.eval-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.eval-stat-card h3 {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* Score badges */
+.score-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.score-badge.score-1,
+.score-badge.score-2 {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.score-badge.score-3 {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.score-badge.score-4,
+.score-badge.score-5 {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+/* Score distribution bars */
+.score-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    max-width: 60px;
+}
+
+.score-bar-fill {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+    min-height: 4px;
+}
+
+.score-bar-fill.score-1,
+.score-bar-fill.score-2 {
+    background-color: #dc3545;
+}
+
+.score-bar-fill.score-3 {
+    background-color: #ffc107;
+}
+
+.score-bar-fill.score-4,
+.score-bar-fill.score-5 {
+    background-color: #28a745;
+}
+
+.score-bar-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+.score-bar-count {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+/* Results table */
+#resultsTable td {
+    vertical-align: middle;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#resultsTable .btn-view {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+}
+
+/* Test cases table */
+#testCasesTable td {
+    vertical-align: middle;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#testCasesTable .btn-action {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.7rem;
+}
+
+/* History items */
+.eval-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.eval-history-item:hover {
+    background-color: #f8f9fa;
+}
+
+.eval-history-item:last-child {
+    border-bottom: none;
+}
+
+.eval-history-item .timestamp {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.eval-history-item .stats {
+    font-size: 0.8rem;
+}
+
+/* Progress bar animation */
+.progress-bar.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+/* Evaluation criteria checkboxes */
+.eval-criteria + label {
+    font-size: 0.9rem;
+}
+
+/* Tab styling for eval section */
+#evalTabs .nav-link {
+    color: #495057;
+}
+
+#evalTabs .nav-link.active {
+    color: #3498db;
+    font-weight: 500;
+}
+
+#evalTabs .nav-link i {
+    margin-right: 0.25rem;
+}

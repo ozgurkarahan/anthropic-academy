@@ -56,6 +56,11 @@
                         <i class="bi bi-braces"></i> Structured Data
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="evaluationSection">
+                        <i class="bi bi-clipboard-check"></i> Prompt Evaluation
+                    </a>
+                </li>
             </ul>
             <div class="sidebar-footer">
                 <button class="btn btn-sm btn-outline-light w-100" data-bs-toggle="collapse" data-bs-target="#configCollapse">
@@ -527,8 +532,385 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- 8. Prompt Evaluation Section -->
+                <section id="evaluationSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-clipboard-check"></i> Prompt Evaluation</h4>
+                        <p class="text-muted mb-0">Create datasets, run evaluations with LLM-as-Judge, and analyze results</p>
+                    </div>
+
+                    <!-- Internal Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="evalTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="dataset-tab" data-bs-toggle="tab" data-bs-target="#datasetPanel" type="button" role="tab">
+                                <i class="bi bi-database"></i> Dataset
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="evaluation-tab" data-bs-toggle="tab" data-bs-target="#evaluationPanel" type="button" role="tab">
+                                <i class="bi bi-play-circle"></i> Évaluation
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#resultsPanel" type="button" role="tab">
+                                <i class="bi bi-graph-up"></i> Résultats
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="evalTabContent">
+                        <!-- Dataset Tab -->
+                        <div class="tab-pane fade show active" id="datasetPanel" role="tabpanel">
+                            <div class="row">
+                                <div class="col-lg-8">
+                                    <!-- Dataset Selector -->
+                                    <div class="card mb-3">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <span>Datasets</span>
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-primary" id="newDatasetBtn">
+                                                    <i class="bi bi-plus"></i> Nouveau
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary" id="importDatasetBtn">
+                                                    <i class="bi bi-upload"></i> Import
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary" id="exportDatasetBtn">
+                                                    <i class="bi bi-download"></i> Export
+                                                </button>
+                                                <input type="file" id="importDatasetFile" class="d-none" accept=".json">
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="input-group mb-3">
+                                                <select class="form-select" id="datasetSelect">
+                                                    <option value="">-- Sélectionner un dataset --</option>
+                                                </select>
+                                                <button class="btn btn-outline-danger" id="deleteDatasetBtn" title="Supprimer">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Test Cases Table -->
+                                    <div class="card mb-3">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <span>Cas de test <span class="badge bg-secondary" id="testCaseCount">0</span></span>
+                                        </div>
+                                        <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                            <table class="table table-sm table-hover" id="testCasesTable">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 40px">#</th>
+                                                        <th>Input</th>
+                                                        <th>Expected Output</th>
+                                                        <th style="width: 80px">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="testCasesBody">
+                                                    <tr>
+                                                        <td colspan="4" class="text-center text-muted">Aucun cas de test</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Add Test Case -->
+                                    <div class="card mb-3">
+                                        <div class="card-header">Ajouter un cas de test</div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-2">
+                                                    <label class="form-label">Input</label>
+                                                    <textarea class="form-control" id="newTestInput" rows="2" placeholder="Question ou entrée..."></textarea>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label class="form-label">Expected Output</label>
+                                                    <textarea class="form-control" id="newTestExpected" rows="2" placeholder="Réponse attendue..."></textarea>
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-primary btn-sm" id="addTestCaseBtn">
+                                                <i class="bi bi-plus"></i> Ajouter
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Generate Dataset -->
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <i class="bi bi-magic"></i> Générer des cas de test avec Claude
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-2">
+                                                <label class="form-label">Contexte / Domaine</label>
+                                                <textarea class="form-control" id="generateContext" rows="2"
+                                                    placeholder="Ex: Questions sur le service client d'une boutique en ligne..."></textarea>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Nombre de cas</label>
+                                                    <input type="number" class="form-control form-control-sm" id="generateCount" value="5" min="1" max="20">
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-success btn-sm" id="generateDatasetBtn">
+                                                <i class="bi bi-stars"></i> Générer
+                                            </button>
+                                            <span class="ms-2 text-muted" id="generateStatus"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <i class="bi bi-bug"></i> Debug Panel
+                                        </div>
+                                        <div class="card-body debug-panel" id="evalDebug">
+                                            <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Evaluation Tab -->
+                        <div class="tab-pane fade" id="evaluationPanel" role="tabpanel">
+                            <div class="row">
+                                <div class="col-lg-8">
+                                    <!-- System Prompt to Test -->
+                                    <div class="card mb-3">
+                                        <div class="card-header">System Prompt à tester</div>
+                                        <div class="card-body">
+                                            <textarea class="form-control" id="evalSystemPrompt" rows="4"
+                                                placeholder="Vous êtes un assistant utile..."></textarea>
+                                        </div>
+                                    </div>
+
+                                    <!-- Evaluation Criteria -->
+                                    <div class="card mb-3">
+                                        <div class="card-header">Critères d'évaluation</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Critères prédéfinis</label>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input eval-criteria" type="checkbox" id="criteriaAccuracy" value="accuracy" checked>
+                                                        <label class="form-check-label" for="criteriaAccuracy">Accuracy</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input eval-criteria" type="checkbox" id="criteriaRelevance" value="relevance" checked>
+                                                        <label class="form-check-label" for="criteriaRelevance">Relevance</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input eval-criteria" type="checkbox" id="criteriaTone" value="tone">
+                                                        <label class="form-check-label" for="criteriaTone">Tone</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input eval-criteria" type="checkbox" id="criteriaCompleteness" value="completeness">
+                                                        <label class="form-check-label" for="criteriaCompleteness">Completeness</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input eval-criteria" type="checkbox" id="criteriaConciseness" value="conciseness">
+                                                        <label class="form-check-label" for="criteriaConciseness">Conciseness</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="form-label">Critères personnalisés (un par ligne)</label>
+                                                <textarea class="form-control" id="customCriteria" rows="2"
+                                                    placeholder="Ex: Utilise un ton professionnel&#10;Répond en français"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Run Evaluation -->
+                                    <div class="card mb-3">
+                                        <div class="card-header">Lancer l'évaluation</div>
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center gap-3 mb-3">
+                                                <div>
+                                                    <strong>Dataset:</strong> <span id="evalDatasetName" class="text-muted">Aucun sélectionné</span>
+                                                </div>
+                                                <div>
+                                                    <strong>Cas:</strong> <span id="evalTestCount" class="badge bg-secondary">0</span>
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-primary" id="runEvaluationBtn" disabled>
+                                                <i class="bi bi-play-fill"></i> Lancer l'évaluation
+                                            </button>
+                                            <div class="mt-3" id="evalProgressContainer" style="display: none;">
+                                                <div class="progress" style="height: 25px;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                         id="evalProgressBar" role="progressbar" style="width: 0%">
+                                                        0%
+                                                    </div>
+                                                </div>
+                                                <small class="text-muted" id="evalProgressText">Préparation...</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <i class="bi bi-bug"></i> Debug Panel
+                                        </div>
+                                        <div class="card-body debug-panel" id="evalRunDebug">
+                                            <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Tab -->
+                        <div class="tab-pane fade" id="resultsPanel" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12">
+                                    <!-- Stats Cards -->
+                                    <div class="row mb-3" id="evalStatsCards">
+                                        <div class="col-md-3">
+                                            <div class="card eval-stat-card">
+                                                <div class="card-body text-center">
+                                                    <h3 class="mb-0" id="statAvgScore">-</h3>
+                                                    <small class="text-muted">Score Moyen</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card eval-stat-card">
+                                                <div class="card-body text-center">
+                                                    <h3 class="mb-0" id="statPassRate">-</h3>
+                                                    <small class="text-muted">Pass Rate (≥4)</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card eval-stat-card">
+                                                <div class="card-body text-center">
+                                                    <h3 class="mb-0" id="statTotalCases">-</h3>
+                                                    <small class="text-muted">Total Cas</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card eval-stat-card">
+                                                <div class="card-body text-center">
+                                                    <h3 class="mb-0" id="statDuration">-</h3>
+                                                    <small class="text-muted">Durée</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Score Distribution -->
+                                    <div class="card mb-3">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <span>Distribution des scores</span>
+                                            <button class="btn btn-sm btn-outline-secondary" id="exportResultsBtn">
+                                                <i class="bi bi-download"></i> Export JSON
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-end gap-2" id="scoreDistribution" style="height: 60px;">
+                                                <div class="text-center text-muted w-100">Aucun résultat</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Results Table -->
+                                    <div class="card mb-3">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <span>Détail des résultats</span>
+                                            <div>
+                                                <select class="form-select form-select-sm" id="resultsFilter" style="width: auto; display: inline-block;">
+                                                    <option value="all">Tous</option>
+                                                    <option value="pass">Pass (≥4)</option>
+                                                    <option value="fail">Fail (<4)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                            <table class="table table-sm table-hover" id="resultsTable">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 40px">#</th>
+                                                        <th>Input</th>
+                                                        <th>Expected</th>
+                                                        <th>Actual</th>
+                                                        <th style="width: 80px">Score</th>
+                                                        <th style="width: 60px">Détail</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="resultsBody">
+                                                    <tr>
+                                                        <td colspan="6" class="text-center text-muted">Aucun résultat d'évaluation</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <!-- Evaluation History -->
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <i class="bi bi-clock-history"></i> Historique des évaluations
+                                        </div>
+                                        <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                                            <div id="evalHistory" class="text-muted">Aucune évaluation précédente</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
+    </div>
+
+    <!-- Result Detail Modal -->
+    <div class="modal fade" id="resultDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Détail du résultat</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Input:</strong>
+                        <div class="bg-light p-2 rounded" id="modalInput"></div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Expected Output:</strong>
+                        <div class="bg-light p-2 rounded" id="modalExpected"></div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Actual Output:</strong>
+                        <div class="bg-light p-2 rounded" id="modalActual"></div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Score:</strong> <span id="modalScore" class="badge"></span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Justification:</strong>
+                        <div class="bg-light p-2 rounded" id="modalJustification"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Points forts:</strong>
+                            <ul id="modalStrengths" class="text-success"></ul>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Points faibles:</strong>
+                            <ul id="modalWeaknesses" class="text-danger"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Loading Overlay -->

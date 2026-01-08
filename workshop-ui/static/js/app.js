@@ -1324,6 +1324,621 @@ function initSidebar() {
 }
 
 // ============================================================================
+// Section: Prompt Evaluation
+// ============================================================================
+
+// Evaluation state (extends global state)
+state.evalDatasets = {};          // All datasets: { name: [{input, expected_output}, ...] }
+state.evalActiveDataset = null;   // Currently selected dataset name
+state.evalResults = [];           // Results of last evaluation
+state.evalHistory = [];           // History of evaluations
+
+function initEvaluation() {
+    // Load from localStorage
+    loadEvalState();
+
+    // Dataset management
+    document.getElementById('newDatasetBtn').addEventListener('click', createNewDataset);
+    document.getElementById('deleteDatasetBtn').addEventListener('click', deleteDataset);
+    document.getElementById('datasetSelect').addEventListener('change', selectDataset);
+    document.getElementById('importDatasetBtn').addEventListener('click', () => {
+        document.getElementById('importDatasetFile').click();
+    });
+    document.getElementById('importDatasetFile').addEventListener('change', importDataset);
+    document.getElementById('exportDatasetBtn').addEventListener('click', exportDataset);
+
+    // Test case management
+    document.getElementById('addTestCaseBtn').addEventListener('click', addTestCase);
+
+    // Dataset generation
+    document.getElementById('generateDatasetBtn').addEventListener('click', generateDataset);
+
+    // Evaluation
+    document.getElementById('runEvaluationBtn').addEventListener('click', runEvaluation);
+
+    // Results
+    document.getElementById('resultsFilter').addEventListener('change', filterResults);
+    document.getElementById('exportResultsBtn').addEventListener('click', exportResults);
+
+    // Update UI
+    refreshDatasetSelect();
+    updateEvalTabInfo();
+}
+
+function loadEvalState() {
+    try {
+        const savedDatasets = localStorage.getItem('eval_datasets');
+        if (savedDatasets) {
+            state.evalDatasets = JSON.parse(savedDatasets);
+        }
+        const savedHistory = localStorage.getItem('eval_history');
+        if (savedHistory) {
+            state.evalHistory = JSON.parse(savedHistory);
+            renderEvalHistory();
+        }
+    } catch (e) {
+        console.error('Error loading eval state:', e);
+    }
+}
+
+function saveEvalState() {
+    try {
+        localStorage.setItem('eval_datasets', JSON.stringify(state.evalDatasets));
+        localStorage.setItem('eval_history', JSON.stringify(state.evalHistory));
+    } catch (e) {
+        console.error('Error saving eval state:', e);
+    }
+}
+
+function refreshDatasetSelect() {
+    const select = document.getElementById('datasetSelect');
+    const names = Object.keys(state.evalDatasets);
+
+    select.innerHTML = '<option value="">-- Sélectionner un dataset --</option>';
+    names.forEach(name => {
+        const count = state.evalDatasets[name].length;
+        select.innerHTML += `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${count} cas)</option>`;
+    });
+
+    if (state.evalActiveDataset && state.evalDatasets[state.evalActiveDataset]) {
+        select.value = state.evalActiveDataset;
+    }
+}
+
+function createNewDataset() {
+    const name = prompt('Nom du nouveau dataset:');
+    if (!name || name.trim() === '') return;
+
+    if (state.evalDatasets[name]) {
+        alert('Un dataset avec ce nom existe déjà');
+        return;
+    }
+
+    state.evalDatasets[name] = [];
+    state.evalActiveDataset = name;
+    saveEvalState();
+    refreshDatasetSelect();
+    renderTestCases();
+    updateEvalTabInfo();
+}
+
+function deleteDataset() {
+    if (!state.evalActiveDataset) {
+        alert('Sélectionnez un dataset à supprimer');
+        return;
+    }
+
+    if (!confirm(`Supprimer le dataset "${state.evalActiveDataset}" ?`)) return;
+
+    delete state.evalDatasets[state.evalActiveDataset];
+    state.evalActiveDataset = null;
+    saveEvalState();
+    refreshDatasetSelect();
+    renderTestCases();
+    updateEvalTabInfo();
+}
+
+function selectDataset(e) {
+    state.evalActiveDataset = e.target.value || null;
+    renderTestCases();
+    updateEvalTabInfo();
+}
+
+function renderTestCases() {
+    const tbody = document.getElementById('testCasesBody');
+    const countBadge = document.getElementById('testCaseCount');
+
+    if (!state.evalActiveDataset || !state.evalDatasets[state.evalActiveDataset]) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Aucun cas de test</td></tr>';
+        countBadge.textContent = '0';
+        return;
+    }
+
+    const cases = state.evalDatasets[state.evalActiveDataset];
+    countBadge.textContent = cases.length;
+
+    if (cases.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Aucun cas de test</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = cases.map((tc, idx) => `
+        <tr>
+            <td>${idx + 1}</td>
+            <td title="${escapeHtml(tc.input)}">${escapeHtml(tc.input.substring(0, 50))}${tc.input.length > 50 ? '...' : ''}</td>
+            <td title="${escapeHtml(tc.expected_output)}">${escapeHtml(tc.expected_output.substring(0, 50))}${tc.expected_output.length > 50 ? '...' : ''}</td>
+            <td>
+                <button class="btn btn-outline-primary btn-action" onclick="editTestCase(${idx})" title="Modifier">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-outline-danger btn-action" onclick="deleteTestCase(${idx})" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function addTestCase() {
+    if (!state.evalActiveDataset) {
+        alert('Créez ou sélectionnez un dataset d\'abord');
+        return;
+    }
+
+    const input = document.getElementById('newTestInput').value.trim();
+    const expected = document.getElementById('newTestExpected').value.trim();
+
+    if (!input || !expected) {
+        alert('Remplissez les deux champs');
+        return;
+    }
+
+    state.evalDatasets[state.evalActiveDataset].push({
+        input: input,
+        expected_output: expected
+    });
+
+    document.getElementById('newTestInput').value = '';
+    document.getElementById('newTestExpected').value = '';
+
+    saveEvalState();
+    refreshDatasetSelect();
+    renderTestCases();
+    updateEvalTabInfo();
+}
+
+function editTestCase(idx) {
+    if (!state.evalActiveDataset) return;
+
+    const tc = state.evalDatasets[state.evalActiveDataset][idx];
+    const newInput = prompt('Input:', tc.input);
+    if (newInput === null) return;
+
+    const newExpected = prompt('Expected Output:', tc.expected_output);
+    if (newExpected === null) return;
+
+    state.evalDatasets[state.evalActiveDataset][idx] = {
+        input: newInput,
+        expected_output: newExpected
+    };
+
+    saveEvalState();
+    renderTestCases();
+}
+
+function deleteTestCase(idx) {
+    if (!state.evalActiveDataset) return;
+    if (!confirm('Supprimer ce cas de test ?')) return;
+
+    state.evalDatasets[state.evalActiveDataset].splice(idx, 1);
+    saveEvalState();
+    refreshDatasetSelect();
+    renderTestCases();
+    updateEvalTabInfo();
+}
+
+function importDataset(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+
+            // Validate structure
+            if (!Array.isArray(data)) {
+                throw new Error('Le fichier doit contenir un tableau JSON');
+            }
+
+            for (const item of data) {
+                if (!item.input || !item.expected_output) {
+                    throw new Error('Chaque élément doit avoir "input" et "expected_output"');
+                }
+            }
+
+            const name = prompt('Nom du dataset importé:', file.name.replace('.json', ''));
+            if (!name) return;
+
+            state.evalDatasets[name] = data;
+            state.evalActiveDataset = name;
+            saveEvalState();
+            refreshDatasetSelect();
+            renderTestCases();
+            updateEvalTabInfo();
+
+            alert(`Dataset "${name}" importé avec ${data.length} cas`);
+        } catch (err) {
+            alert('Erreur: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset file input
+}
+
+function exportDataset() {
+    if (!state.evalActiveDataset || !state.evalDatasets[state.evalActiveDataset]) {
+        alert('Sélectionnez un dataset à exporter');
+        return;
+    }
+
+    const data = state.evalDatasets[state.evalActiveDataset];
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${state.evalActiveDataset}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function generateDataset() {
+    const context = document.getElementById('generateContext').value.trim();
+    const count = parseInt(document.getElementById('generateCount').value) || 5;
+    const statusEl = document.getElementById('generateStatus');
+
+    if (!context) {
+        alert('Entrez un contexte/domaine pour la génération');
+        return;
+    }
+
+    if (!state.evalActiveDataset) {
+        alert('Créez ou sélectionnez un dataset d\'abord');
+        return;
+    }
+
+    statusEl.textContent = 'Génération en cours...';
+    document.getElementById('generateDatasetBtn').disabled = true;
+
+    try {
+        const response = await fetch('/api/eval/generate-dataset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config: getConfig(),
+                context: context,
+                count: count
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Add generated cases to current dataset
+            state.evalDatasets[state.evalActiveDataset].push(...result.cases);
+            saveEvalState();
+            refreshDatasetSelect();
+            renderTestCases();
+            updateEvalTabInfo();
+
+            statusEl.textContent = `${result.cases.length} cas générés !`;
+
+            // Update debug panel
+            updateDebugPanel('evalDebug', result.debug || result);
+        } else {
+            throw new Error(result.error || 'Erreur de génération');
+        }
+    } catch (err) {
+        statusEl.textContent = 'Erreur: ' + err.message;
+        console.error('Generate error:', err);
+    } finally {
+        document.getElementById('generateDatasetBtn').disabled = false;
+    }
+}
+
+function updateEvalTabInfo() {
+    const nameEl = document.getElementById('evalDatasetName');
+    const countEl = document.getElementById('evalTestCount');
+    const runBtn = document.getElementById('runEvaluationBtn');
+
+    if (state.evalActiveDataset && state.evalDatasets[state.evalActiveDataset]) {
+        const count = state.evalDatasets[state.evalActiveDataset].length;
+        nameEl.textContent = state.evalActiveDataset;
+        nameEl.className = '';
+        countEl.textContent = count;
+        runBtn.disabled = count === 0;
+    } else {
+        nameEl.textContent = 'Aucun sélectionné';
+        nameEl.className = 'text-muted';
+        countEl.textContent = '0';
+        runBtn.disabled = true;
+    }
+}
+
+function getSelectedCriteria() {
+    const criteria = [];
+
+    // Predefined criteria
+    document.querySelectorAll('.eval-criteria:checked').forEach(cb => {
+        criteria.push(cb.value);
+    });
+
+    // Custom criteria
+    const customText = document.getElementById('customCriteria').value.trim();
+    if (customText) {
+        customText.split('\n').forEach(line => {
+            const trimmed = line.trim();
+            if (trimmed) {
+                criteria.push('custom:' + trimmed);
+            }
+        });
+    }
+
+    return criteria;
+}
+
+async function runEvaluation() {
+    if (!state.evalActiveDataset || !state.evalDatasets[state.evalActiveDataset]) {
+        alert('Sélectionnez un dataset');
+        return;
+    }
+
+    const dataset = state.evalDatasets[state.evalActiveDataset];
+    if (dataset.length === 0) {
+        alert('Le dataset est vide');
+        return;
+    }
+
+    const systemPrompt = document.getElementById('evalSystemPrompt').value.trim();
+    const criteria = getSelectedCriteria();
+
+    if (criteria.length === 0) {
+        alert('Sélectionnez au moins un critère d\'évaluation');
+        return;
+    }
+
+    // Show progress
+    const progressContainer = document.getElementById('evalProgressContainer');
+    const progressBar = document.getElementById('evalProgressBar');
+    const progressText = document.getElementById('evalProgressText');
+    const runBtn = document.getElementById('runEvaluationBtn');
+
+    progressContainer.style.display = 'block';
+    runBtn.disabled = true;
+    progressBar.style.width = '0%';
+    progressBar.textContent = '0%';
+    progressText.textContent = 'Lancement de l\'évaluation...';
+
+    const startTime = Date.now();
+
+    try {
+        const response = await fetch('/api/eval/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config: getConfig(),
+                system_prompt: systemPrompt,
+                dataset: dataset,
+                criteria: criteria
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+            state.evalResults = result.results;
+
+            // Save to history
+            const historyEntry = {
+                timestamp: new Date().toISOString(),
+                datasetName: state.evalActiveDataset,
+                casesCount: dataset.length,
+                avgScore: result.stats.avg_score,
+                passRate: result.stats.pass_rate,
+                duration: duration,
+                results: result.results
+            };
+            state.evalHistory.unshift(historyEntry);
+            if (state.evalHistory.length > 10) {
+                state.evalHistory.pop();
+            }
+            saveEvalState();
+
+            // Update debug panel
+            updateDebugPanel('evalRunDebug', result.debug || result);
+
+            // Display results
+            displayResults(result.results, result.stats, duration);
+            renderEvalHistory();
+
+            // Switch to results tab
+            document.getElementById('results-tab').click();
+
+            progressText.textContent = 'Évaluation terminée !';
+        } else {
+            throw new Error(result.error || 'Erreur d\'évaluation');
+        }
+    } catch (err) {
+        progressText.textContent = 'Erreur: ' + err.message;
+        console.error('Evaluation error:', err);
+    } finally {
+        runBtn.disabled = false;
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+        }, 2000);
+    }
+}
+
+function displayResults(results, stats, duration) {
+    // Update stat cards
+    document.getElementById('statAvgScore').textContent = stats.avg_score.toFixed(2) + '/5';
+    document.getElementById('statPassRate').textContent = stats.pass_rate.toFixed(0) + '%';
+    document.getElementById('statTotalCases').textContent = results.length;
+    document.getElementById('statDuration').textContent = duration + 's';
+
+    // Score distribution
+    const distribution = document.getElementById('scoreDistribution');
+    const scoreCounts = [0, 0, 0, 0, 0]; // scores 1-5
+    results.forEach(r => {
+        if (r.score >= 1 && r.score <= 5) {
+            scoreCounts[r.score - 1]++;
+        }
+    });
+
+    const maxCount = Math.max(...scoreCounts, 1);
+    distribution.innerHTML = scoreCounts.map((count, idx) => {
+        const height = (count / maxCount) * 50;
+        const score = idx + 1;
+        return `
+            <div class="score-bar">
+                <div class="score-bar-fill score-${score}" style="height: ${height}px;"></div>
+                <div class="score-bar-label">★${score}</div>
+                <div class="score-bar-count">${count}</div>
+            </div>
+        `;
+    }).join('');
+
+    // Results table
+    renderResultsTable(results);
+}
+
+function renderResultsTable(results, filter = 'all') {
+    const tbody = document.getElementById('resultsBody');
+
+    let filtered = results;
+    if (filter === 'pass') {
+        filtered = results.filter(r => r.score >= 4);
+    } else if (filter === 'fail') {
+        filtered = results.filter(r => r.score < 4);
+    }
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Aucun résultat</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((r, idx) => `
+        <tr>
+            <td>${idx + 1}</td>
+            <td title="${escapeHtml(r.input)}">${escapeHtml(r.input.substring(0, 40))}...</td>
+            <td title="${escapeHtml(r.expected_output)}">${escapeHtml(r.expected_output.substring(0, 40))}...</td>
+            <td title="${escapeHtml(r.actual_output)}">${escapeHtml(r.actual_output.substring(0, 40))}...</td>
+            <td><span class="score-badge score-${r.score}">${r.score}/5</span></td>
+            <td>
+                <button class="btn btn-outline-secondary btn-view" onclick="showResultDetail(${idx})">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterResults() {
+    const filter = document.getElementById('resultsFilter').value;
+    renderResultsTable(state.evalResults, filter);
+}
+
+function showResultDetail(idx) {
+    const r = state.evalResults[idx];
+    if (!r) return;
+
+    document.getElementById('modalInput').textContent = r.input;
+    document.getElementById('modalExpected').textContent = r.expected_output;
+    document.getElementById('modalActual').textContent = r.actual_output;
+
+    const scoreEl = document.getElementById('modalScore');
+    scoreEl.textContent = r.score + '/5';
+    scoreEl.className = `badge score-badge score-${r.score}`;
+
+    document.getElementById('modalJustification').textContent = r.justification || 'N/A';
+
+    const strengthsEl = document.getElementById('modalStrengths');
+    strengthsEl.innerHTML = (r.strengths || []).map(s => `<li>${escapeHtml(s)}</li>`).join('');
+
+    const weaknessesEl = document.getElementById('modalWeaknesses');
+    weaknessesEl.innerHTML = (r.weaknesses || []).map(w => `<li>${escapeHtml(w)}</li>`).join('');
+
+    const modal = new bootstrap.Modal(document.getElementById('resultDetailModal'));
+    modal.show();
+}
+
+function exportResults() {
+    if (state.evalResults.length === 0) {
+        alert('Aucun résultat à exporter');
+        return;
+    }
+
+    const exportData = {
+        timestamp: new Date().toISOString(),
+        dataset: state.evalActiveDataset,
+        results: state.evalResults
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `eval-results-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function renderEvalHistory() {
+    const container = document.getElementById('evalHistory');
+
+    if (state.evalHistory.length === 0) {
+        container.innerHTML = '<div class="text-muted">Aucune évaluation précédente</div>';
+        return;
+    }
+
+    container.innerHTML = state.evalHistory.map((h, idx) => {
+        const date = new Date(h.timestamp);
+        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        return `
+            <div class="eval-history-item" onclick="loadHistoryEntry(${idx})">
+                <div>
+                    <strong>${escapeHtml(h.datasetName)}</strong>
+                    <span class="timestamp">${dateStr}</span>
+                </div>
+                <div class="stats">
+                    <span class="badge bg-secondary">${h.casesCount} cas</span>
+                    <span class="badge ${h.passRate >= 70 ? 'bg-success' : 'bg-warning'}">${h.passRate.toFixed(0)}%</span>
+                    <span class="badge bg-info">${h.avgScore.toFixed(1)}/5</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function loadHistoryEntry(idx) {
+    const entry = state.evalHistory[idx];
+    if (!entry || !entry.results) return;
+
+    state.evalResults = entry.results;
+
+    const stats = {
+        avg_score: entry.avgScore,
+        pass_rate: entry.passRate
+    };
+
+    displayResults(entry.results, stats, entry.duration);
+}
+
+// ============================================================================
 // Initialize All Sections
 // ============================================================================
 
@@ -1337,6 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initThinking();
     initCaching();
     initStructuredData();
+    initEvaluation();
 
     // Initialize syntax highlighting
     hljs.highlightAll();
