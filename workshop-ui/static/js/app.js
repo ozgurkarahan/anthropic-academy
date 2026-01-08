@@ -30,6 +30,152 @@ const state = {
 };
 
 // ============================================================================
+// Sample Caching Data (from api-claude/prompt-caching/003_caching.ipynb)
+// ============================================================================
+
+const SAMPLE_CACHING_SYSTEM_PROMPT = `# Javascript Code Generator for Document Analysis Flow
+
+You are an expert Javascript code generator. Your specialty is creating code for a document analysis flow builder application. The code you generate will run in a sandboxed Javascript environment (QuickJS) and will use a predefined set of UI components to construct user interfaces.
+
+Your Goal: Generate functional Typescript code that defines both the logic and user interface for a document analysis workflow, based on the user's prompt. The generated code must be ready to execute directly within the sandbox environment.
+
+## Constraints and Environment Details:
+
+1. Sandboxed Javascript (QuickJS) Environment:
+Your code operates within a QuickJS sandbox. This means you have a restricted set of pre-defined global functions available. You cannot import any libraries or use standard browser APIs.
+
+Available global functions:
+- setState(state): Updates the application state
+- getState(): Retrieves the current application state
+- callLLM(props): Calls a LLM with messages and schema
+- navigateTo(path): Navigates to a different path/screen
+- getPath(): Returns the current application path
+- Schema helpers: str, num, bool, obj, arr
+
+2. Component-Based UI:
+Build user interfaces using pre-defined components: Route, Header, Link, H2, Panel, Chat, DocumentPicker, UL, LI, Button, etc.
+
+3. Code Structure - Key Functions:
+- getInitialState(): Returns initial application state object
+- render(): Defines the UI based on current state (can be async)
+
+4. State Management:
+- Use await getState() to retrieve current state
+- Use await setState(partialState) to update state and trigger re-render
+
+5. LLM Interaction:
+- Use callLLM({ messages, systemPrompt, schema, onProgress }) for AI communication
+- Always define schemas for structured responses
+
+## Key Guidelines:
+- Multi-Screen Flows: Design as multiple screens with Route components
+- Document Editing: Apply changes automatically in track-changes mode
+- Schema Flexibility: Use optional fields for varying response types
+- Context in System Prompt: Include document content in systemPrompt, not user messages
+
+## Example Scenario:
+For a deposition preparation flow:
+1. DocumentPicker to select documents
+2. Extract key topics using LLM with schema
+3. Chat interface for cross-examination questions
+4. Navigation between screens using Link components`;
+
+const SAMPLE_CACHING_TOOLS = [
+    {
+        name: "db_query",
+        description: "Executes SQL queries against a SQLite database and returns the results. This tool allows running SELECT, INSERT, UPDATE, DELETE, and other SQL statements on a specified SQLite database. For SELECT queries, it returns the query results as structured data. For other query types, it returns metadata about the operation's effects.",
+        input_schema: {
+            type: "object",
+            properties: {
+                query: {
+                    type: "string",
+                    description: "The SQL query to execute against the database."
+                },
+                database_path: {
+                    type: "string",
+                    description: "The path to the SQLite database file."
+                },
+                params: {
+                    type: "object",
+                    description: "Parameters to bind to the query for parameterized statements."
+                },
+                result_format: {
+                    type: "string",
+                    description: "The format in which to return query results: 'dict', 'list', or 'table'.",
+                    enum: ["dict", "list", "table"],
+                    default: "dict"
+                },
+                max_rows: {
+                    type: "integer",
+                    description: "Maximum number of rows to return. Defaults to 1000.",
+                    default: 1000
+                }
+            },
+            required: ["query"]
+        }
+    },
+    {
+        name: "add_duration_to_datetime",
+        description: "Add a specified duration to a datetime string and returns the resulting datetime in a detailed format. Handles various time units including seconds, minutes, hours, days, weeks, months, and years.",
+        input_schema: {
+            type: "object",
+            properties: {
+                datetime_str: {
+                    type: "string",
+                    description: "The input datetime string to which the duration will be added."
+                },
+                duration: {
+                    type: "number",
+                    description: "The amount of time to add. Can be positive or negative."
+                },
+                unit: {
+                    type: "string",
+                    description: "The unit of time: 'seconds', 'minutes', 'hours', 'days', 'weeks', 'months', or 'years'."
+                },
+                input_format: {
+                    type: "string",
+                    description: "The format string for parsing the input datetime_str. Defaults to '%Y-%m-%d'."
+                }
+            },
+            required: ["datetime_str"]
+        }
+    },
+    {
+        name: "set_reminder",
+        description: "Creates a timed reminder that will notify the user at the specified time with the provided content. The reminder system will store the content and timestamp, then trigger a notification when the specified time arrives.",
+        input_schema: {
+            type: "object",
+            properties: {
+                content: {
+                    type: "string",
+                    description: "The message text that will be displayed in the reminder notification."
+                },
+                timestamp: {
+                    type: "string",
+                    description: "The exact date and time when the reminder should be triggered, formatted as ISO 8601."
+                }
+            },
+            required: ["content", "timestamp"]
+        }
+    },
+    {
+        name: "get_current_datetime",
+        description: "Returns the current date and time formatted according to the specified format string. Use this tool when you need to know the current date and time.",
+        input_schema: {
+            type: "object",
+            properties: {
+                date_format: {
+                    type: "string",
+                    description: "Format string using Python's strftime format codes. Defaults to '%Y-%m-%d %H:%M:%S'.",
+                    default: "%Y-%m-%d %H:%M:%S"
+                }
+            },
+            required: []
+        }
+    }
+];
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -831,6 +977,7 @@ function initCaching() {
     const sendBtn = document.getElementById('sendCachingChat');
     const input = document.getElementById('cachingChatInput');
     const clearBtn = document.getElementById('clearCachingChat');
+    const loadSamplesBtn = document.getElementById('loadCachingSamples');
 
     sendBtn.addEventListener('click', sendCachingChat);
     input.addEventListener('keydown', (e) => {
@@ -851,6 +998,14 @@ function initCaching() {
         document.getElementById('cachingDebug').querySelector('code').textContent = '// Request/Response will appear here';
         document.getElementById('cacheStats').innerHTML = '';
     });
+
+    loadSamplesBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('Loading caching samples...');
+        document.getElementById('cacheSystemPrompt').value = SAMPLE_CACHING_SYSTEM_PROMPT;
+        document.getElementById('cacheTools').value = JSON.stringify(SAMPLE_CACHING_TOOLS, null, 2);
+        console.log('Samples loaded');
+    });
 }
 
 async function sendCachingChat() {
@@ -870,12 +1025,27 @@ async function sendCachingChat() {
 
     const systemPrompt = document.getElementById('cacheSystemPrompt').value.trim();
     const enableCaching = document.getElementById('enableCaching').checked;
+    const toolsJson = document.getElementById('cacheTools').value.trim();
+    const enableToolsCaching = document.getElementById('enableToolsCaching').checked;
+
+    // Parse tools JSON if provided
+    let tools = null;
+    if (toolsJson) {
+        try {
+            tools = JSON.parse(toolsJson);
+        } catch (e) {
+            showError('Invalid tools JSON: ' + e.message, 'cachingChatMessages');
+            return;
+        }
+    }
 
     await streamChat('/api/chat/cached', {
         config: getConfig(),
         messages: state.cachingMessages,
         system: systemPrompt || null,
         cache_system: enableCaching,
+        tools: tools,
+        cache_tools: enableToolsCaching,
         max_tokens: 4096,
         temperature: 1.0
     }, {

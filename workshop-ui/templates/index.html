@@ -405,22 +405,36 @@
                 <section id="cachingSection" class="content-section">
                     <div class="section-header">
                         <h4><i class="bi bi-database"></i> Prompt Caching</h4>
-                        <p class="text-muted mb-0">Test caching to reduce latency and costs</p>
+                        <p class="text-muted mb-0">Test caching to reduce latency and costs with system prompts and tools</p>
                     </div>
                     <div class="row">
                         <div class="col-lg-8">
                             <div class="card mb-3">
-                                <div class="card-header">Caching Configuration</div>
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Caching Configuration</span>
+                                    <button class="btn btn-sm btn-link" id="loadCachingSamples">Load Samples (~8k tokens)</button>
+                                </div>
                                 <div class="card-body">
                                     <div class="mb-3">
-                                        <label for="cacheSystemPrompt" class="form-label">System Prompt (to cache)</label>
-                                        <textarea class="form-control" id="cacheSystemPrompt" rows="3"
+                                        <label for="cacheSystemPrompt" class="form-label">System Prompt (~6k tokens)</label>
+                                        <textarea class="form-control" id="cacheSystemPrompt" rows="4"
                                                   placeholder="Enter a long system prompt to cache..."></textarea>
                                     </div>
                                     <div class="form-check mb-3">
                                         <input class="form-check-input" type="checkbox" id="enableCaching" checked>
                                         <label class="form-check-label" for="enableCaching">
-                                            Enable prompt caching (ephemeral cache control)
+                                            Cache system prompt
+                                        </label>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="cacheTools" class="form-label">Tools JSON (~1.7k tokens)</label>
+                                        <textarea class="form-control font-monospace" id="cacheTools" rows="4"
+                                                  placeholder='[{"name": "tool_name", "description": "...", "input_schema": {...}}]'></textarea>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="enableToolsCaching" checked>
+                                        <label class="form-check-label" for="enableToolsCaching">
+                                            Cache tools (adds cache_control to last tool)
                                         </label>
                                     </div>
                                     <div id="cacheStats">

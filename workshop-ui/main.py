@@ -77,6 +77,8 @@ class CachingRequest(BaseModel):
     max_tokens: int = 4096
     temperature: float = 1.0
     cache_system: bool = False
+    tools: Optional[List[ToolDefinition]] = None
+    cache_tools: bool = False
 
 
 class StructuredRequest(BaseModel):
@@ -470,7 +472,7 @@ async def chat_with_thinking(request: ThinkingRequest):
 
 @app.post("/api/chat/cached")
 async def chat_with_caching(request: CachingRequest):
-    """Chat endpoint with prompt caching."""
+    """Chat endpoint with prompt caching for system prompt and tools."""
     client = get_client(request.config)
 
     # Build system with cache control if requested
@@ -487,6 +489,14 @@ async def chat_with_caching(request: CachingRequest):
         else:
             system_content = request.system
 
+    # Build tools with cache control on last tool if requested
+    tools_content = None
+    if request.tools:
+        tools_content = [tool.model_dump() for tool in request.tools]
+        if request.cache_tools and tools_content:
+            # Add cache_control to the last tool (matching notebook pattern)
+            tools_content[-1]["cache_control"] = {"type": "ephemeral"}
+
     params = {
         "model": request.config.model,
         "max_tokens": request.max_tokens,
@@ -495,6 +505,8 @@ async def chat_with_caching(request: CachingRequest):
     }
     if system_content:
         params["system"] = system_content
+    if tools_content:
+        params["tools"] = tools_content
 
     debug_request = format_request_for_debug("/v1/messages (caching)", params)
 
