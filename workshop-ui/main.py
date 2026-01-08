@@ -374,15 +374,18 @@ async def chat_with_tools(request: ToolChatRequest):
 
 @app.post("/api/chat/thinking")
 async def chat_with_thinking(request: ThinkingRequest):
-    """Chat endpoint with extended thinking enabled."""
+    """Chat endpoint with extended thinking - uses non-streaming for Heroku."""
     client = get_client(request.config)
+
+    # Ensure budget_tokens is at least 1024 (Heroku requirement)
+    budget_tokens = max(request.budget_tokens, 1024)
 
     params = {
         "model": request.config.model,
         "max_tokens": request.max_tokens,
         "thinking": {
             "type": "enabled",
-            "budget_tokens": request.budget_tokens
+            "budget_tokens": budget_tokens
         },
         "messages": [msg.model_dump() for msg in request.messages]
     }
@@ -395,53 +398,40 @@ async def chat_with_thinking(request: ThinkingRequest):
         yield f"data: {json.dumps({'type': 'debug_request', 'data': debug_request})}\n\n"
 
         try:
-            with client.messages.stream(**params) as stream:
-                full_response = {"content": [], "model": "", "usage": {}}
-                current_thinking = ""
+            # Use non-streaming API (Heroku doesn't support streaming)
+            response = client.messages.create(**params)
 
-                for event in stream:
-                    if hasattr(event, 'type'):
-                        if event.type == 'message_start':
-                            full_response["model"] = event.message.model
-                            full_response["id"] = event.message.id
-                        elif event.type == 'content_block_start':
-                            if hasattr(event.content_block, 'type'):
-                                if event.content_block.type == 'thinking':
-                                    yield f"data: {json.dumps({'type': 'thinking_start'})}\n\n"
-                                elif event.content_block.type == 'text':
-                                    yield f"data: {json.dumps({'type': 'text_start'})}\n\n"
-                        elif event.type == 'content_block_delta':
-                            if hasattr(event.delta, 'thinking'):
-                                current_thinking += event.delta.thinking
-                                yield f"data: {json.dumps({'type': 'thinking', 'data': event.delta.thinking})}\n\n"
-                            elif hasattr(event.delta, 'text'):
-                                yield f"data: {json.dumps({'type': 'text', 'data': event.delta.text})}\n\n"
+            full_response = {"content": [], "model": response.model, "id": response.id, "usage": {}}
 
-                # Get final message
-                final_message = stream.get_final_message()
-                for block in final_message.content:
-                    if block.type == "thinking":
-                        full_response["content"].append({
-                            "type": "thinking",
-                            "thinking": block.thinking
-                        })
-                    elif block.type == "text":
-                        full_response["content"].append({
-                            "type": "text",
-                            "text": block.text
-                        })
+            # Process content blocks
+            for block in response.content:
+                if block.type == "thinking":
+                    thinking_content = block.thinking if block.thinking else "(Thinking content not available on Heroku)"
+                    full_response["content"].append({
+                        "type": "thinking",
+                        "thinking": thinking_content
+                    })
+                    yield f"data: {json.dumps({'type': 'thinking', 'data': thinking_content})}\n\n"
+                elif block.type == "text":
+                    full_response["content"].append({
+                        "type": "text",
+                        "text": block.text
+                    })
+                    yield f"data: {json.dumps({'type': 'text', 'data': block.text})}\n\n"
 
-                full_response["usage"] = {
-                    "input_tokens": final_message.usage.input_tokens,
-                    "output_tokens": final_message.usage.output_tokens
-                }
-                full_response["stop_reason"] = final_message.stop_reason
+            full_response["usage"] = {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens
+            }
+            full_response["stop_reason"] = response.stop_reason
 
-                yield f"data: {json.dumps({'type': 'debug_response', 'data': full_response})}\n\n"
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            yield f"data: {json.dumps({'type': 'debug_response', 'data': full_response})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except anthropic.APIError as e:
             yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'data': f'Error: {type(e).__name__}: {str(e)}'})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
