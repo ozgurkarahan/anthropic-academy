@@ -8,7 +8,8 @@ Learning repository containing examples and projects from Anthropic Academy, dem
 anthropic-academy/
 ├── api-claude/          # Jupyter notebooks for Claude API learning
 ├── claude-code/         # MCP server with document processing tools
-└── mcp-claude/          # CLI chat applications using MCP
+├── mcp-claude/          # CLI chat applications using MCP
+└── workshop-ui/         # Interactive web UI for testing Claude API
 ```
 
 ## Projects
@@ -83,6 +84,33 @@ cli_project/
 
 **Note:** `cli_project_COMPLETE/` contains the finished reference implementation.
 
+### workshop-ui/
+
+Interactive web UI for testing and learning Claude API features from the Anthropic Academy workshop.
+
+```
+workshop-ui/
+├── main.py              # FastAPI backend
+├── requirements.txt     # Python dependencies
+├── static/
+│   ├── css/style.css    # Custom styles
+│   └── js/app.js        # Frontend JavaScript
+└── templates/
+    └── index.html       # Main HTML page
+```
+
+**Features:**
+- **Basic Chat** - Simple conversation with Claude
+- **Prompt Engineering** - Test system prompts, temperature, max tokens
+- **Tool Use** - Pre-defined sample tools (calculator, time, weather)
+- **File Upload** - Images and PDFs with drag & drop
+- **Extended Thinking** - See Claude's reasoning process
+- **Prompt Caching** - Test caching with statistics
+- **Structured Data** - Extract JSON using schemas
+- **Debug Panel** - View raw request/response JSON for each section
+
+**Note:** Compatible with Heroku inference API (uses non-streaming mode).
+
 ## Setup
 
 ### Prerequisites
@@ -122,6 +150,14 @@ cd mcp-claude/cli_project
 uv venv && source .venv/bin/activate
 uv pip install -e .
 uv run main.py           # Start the CLI chat
+```
+
+**For Workshop UI (workshop-ui):**
+```bash
+cd workshop-ui
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python main.py           # Open http://localhost:8000
 ```
 
 ## License
