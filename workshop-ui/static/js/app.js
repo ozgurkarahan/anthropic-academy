@@ -235,6 +235,7 @@ async function streamChat(endpoint, body, options) {
                                 break;
 
                             case 'thinking':
+                            case 'thinking_delta':
                                 thinkingText += data.data;
                                 streamingDiv.querySelector('.message-content').innerHTML =
                                     `<em>Thinking...</em><br><small class="text-muted">${escapeHtml(thinkingText.slice(-200))}...</small>`;
