@@ -45,132 +45,113 @@ Your Goal: Generate functional Typescript code that defines both the logic and u
 Your code operates within a QuickJS sandbox. This means you have a restricted set of pre-defined global functions available. You cannot import any libraries or use standard browser APIs.
 
 Available global functions:
-- setState(state): Updates the application state
-- getState(): Retrieves the current application state
-- callLLM(props): Calls a LLM with messages and schema
-- navigateTo(path): Navigates to a different path/screen
-- getPath(): Returns the current application path
-- Schema helpers: str, num, bool, obj, arr
+- setState(state): Updates the application state with a partial state object. This triggers a re-render of the UI.
+- getState(): Retrieves the current application state as an object containing all state variables.
+- callLLM(props): Calls a LLM with messages and schema. Returns structured data based on the schema provided.
+- navigateTo(path): Navigates to a different path/screen within the application.
+- getPath(): Returns the current application path as a string.
+- Schema helpers: str, num, bool, obj, arr - Used to define structured response schemas for LLM calls.
 
 2. Component-Based UI:
-Build user interfaces using pre-defined components: Route, Header, Link, H2, Panel, Chat, DocumentPicker, UL, LI, Button, etc.
+Build user interfaces using pre-defined components. Each component has specific props and behaviors:
+- Route: Defines a screen/page at a specific path. Props: path (string)
+- Header: Application header with title. Props: title (string), subtitle (optional string)
+- Link: Navigation link to another route. Props: to (string), children (content)
+- H2: Section heading. Props: children (text content)
+- Panel: Container with optional title and styling. Props: title (string), variant (string)
+- Chat: Interactive chat interface. Props: messages (array), onSend (function)
+- DocumentPicker: File selection component. Props: onSelect (function), accept (string)
+- UL/LI: Unordered list and list items for structured content
+- Button: Interactive button. Props: onClick (function), variant (string), disabled (boolean)
+- Input: Text input field. Props: value (string), onChange (function), placeholder (string)
+- TextArea: Multi-line text input. Props: value (string), onChange (function), rows (number)
+- Select: Dropdown selection. Props: options (array), value (string), onChange (function)
+- Checkbox: Boolean toggle. Props: checked (boolean), onChange (function), label (string)
+- Table: Data table display. Props: columns (array), data (array), onRowClick (function)
+- Modal: Overlay dialog. Props: isOpen (boolean), onClose (function), title (string)
+- Tabs: Tabbed interface. Props: tabs (array), activeTab (string), onTabChange (function)
+- Progress: Progress indicator. Props: value (number), max (number), label (string)
+- Alert: Notification message. Props: type (string: info/warning/error/success), message (string)
 
 3. Code Structure - Key Functions:
-- getInitialState(): Returns initial application state object
-- render(): Defines the UI based on current state (can be async)
+- getInitialState(): Returns initial application state object. Called once when app loads.
+- render(): Defines the UI based on current state (can be async). Called on every state change.
 
 4. State Management:
-- Use await getState() to retrieve current state
+- Use await getState() to retrieve current state object
 - Use await setState(partialState) to update state and trigger re-render
+- State is persisted across renders but not across page reloads
+- Always initialize all state variables in getInitialState()
 
 5. LLM Interaction:
 - Use callLLM({ messages, systemPrompt, schema, onProgress }) for AI communication
-- Always define schemas for structured responses
+- Always define schemas for structured responses using the schema helpers
+- The onProgress callback receives streaming updates for long-running requests
+- Messages should follow the standard format: { role: 'user' | 'assistant', content: string }
 
 ## Key Guidelines:
-- Multi-Screen Flows: Design as multiple screens with Route components
-- Document Editing: Apply changes automatically in track-changes mode
-- Schema Flexibility: Use optional fields for varying response types
+- Multi-Screen Flows: Design as multiple screens with Route components for complex workflows
+- Document Editing: Apply changes automatically in track-changes mode when modifying documents
+- Schema Flexibility: Use optional fields for varying response types to handle edge cases
 - Context in System Prompt: Include document content in systemPrompt, not user messages
+- Error Handling: Always handle potential errors from LLM calls and user inputs gracefully
+- Loading States: Show appropriate loading indicators during async operations
+- Validation: Validate user inputs before processing to prevent errors
 
 ## Example Scenario:
 For a deposition preparation flow:
-1. DocumentPicker to select documents
-2. Extract key topics using LLM with schema
-3. Chat interface for cross-examination questions
-4. Navigation between screens using Link components`;
+1. DocumentPicker to select documents - Allow users to upload legal documents for analysis
+2. Extract key topics using LLM with schema - Parse documents and identify main themes
+3. Chat interface for cross-examination questions - Interactive Q&A for preparation
+4. Navigation between screens using Link components - Smooth flow between steps
+5. Summary generation - Create comprehensive summaries of key findings
+6. Export functionality - Allow users to download results in various formats
 
+## Best Practices:
+- Keep components small and focused on single responsibilities
+- Use meaningful variable names that describe the data they hold
+- Comment complex logic to explain the reasoning
+- Test edge cases like empty inputs and long documents
+- Optimize for readability over cleverness
+- Follow consistent naming conventions throughout the codebase`;
+
+// Sample tools for caching - same as Tool Use section (these are implemented in the backend)
 const SAMPLE_CACHING_TOOLS = [
     {
-        name: "db_query",
-        description: "Executes SQL queries against a SQLite database and returns the results. This tool allows running SELECT, INSERT, UPDATE, DELETE, and other SQL statements on a specified SQLite database. For SELECT queries, it returns the query results as structured data. For other query types, it returns metadata about the operation's effects.",
+        name: "calculator",
+        description: "Perform basic math calculations. Supports +, -, *, /, and parentheses.",
         input_schema: {
             type: "object",
             properties: {
-                query: {
+                expression: {
                     type: "string",
-                    description: "The SQL query to execute against the database."
-                },
-                database_path: {
-                    type: "string",
-                    description: "The path to the SQLite database file."
-                },
-                params: {
-                    type: "object",
-                    description: "Parameters to bind to the query for parameterized statements."
-                },
-                result_format: {
-                    type: "string",
-                    description: "The format in which to return query results: 'dict', 'list', or 'table'.",
-                    enum: ["dict", "list", "table"],
-                    default: "dict"
-                },
-                max_rows: {
-                    type: "integer",
-                    description: "Maximum number of rows to return. Defaults to 1000.",
-                    default: 1000
+                    description: "The mathematical expression to evaluate (e.g., '2 + 2', '(10 * 5) / 2')"
                 }
             },
-            required: ["query"]
+            required: ["expression"]
         }
     },
     {
-        name: "add_duration_to_datetime",
-        description: "Add a specified duration to a datetime string and returns the resulting datetime in a detailed format. Handles various time units including seconds, minutes, hours, days, weeks, months, and years.",
+        name: "get_current_time",
+        description: "Get the current date and time.",
         input_schema: {
             type: "object",
-            properties: {
-                datetime_str: {
-                    type: "string",
-                    description: "The input datetime string to which the duration will be added."
-                },
-                duration: {
-                    type: "number",
-                    description: "The amount of time to add. Can be positive or negative."
-                },
-                unit: {
-                    type: "string",
-                    description: "The unit of time: 'seconds', 'minutes', 'hours', 'days', 'weeks', 'months', or 'years'."
-                },
-                input_format: {
-                    type: "string",
-                    description: "The format string for parsing the input datetime_str. Defaults to '%Y-%m-%d'."
-                }
-            },
-            required: ["datetime_str"]
-        }
-    },
-    {
-        name: "set_reminder",
-        description: "Creates a timed reminder that will notify the user at the specified time with the provided content. The reminder system will store the content and timestamp, then trigger a notification when the specified time arrives.",
-        input_schema: {
-            type: "object",
-            properties: {
-                content: {
-                    type: "string",
-                    description: "The message text that will be displayed in the reminder notification."
-                },
-                timestamp: {
-                    type: "string",
-                    description: "The exact date and time when the reminder should be triggered, formatted as ISO 8601."
-                }
-            },
-            required: ["content", "timestamp"]
-        }
-    },
-    {
-        name: "get_current_datetime",
-        description: "Returns the current date and time formatted according to the specified format string. Use this tool when you need to know the current date and time.",
-        input_schema: {
-            type: "object",
-            properties: {
-                date_format: {
-                    type: "string",
-                    description: "Format string using Python's strftime format codes. Defaults to '%Y-%m-%d %H:%M:%S'.",
-                    default: "%Y-%m-%d %H:%M:%S"
-                }
-            },
+            properties: {},
             required: []
+        }
+    },
+    {
+        name: "get_weather",
+        description: "Get the current weather for a location (mock data for demonstration).",
+        input_schema: {
+            type: "object",
+            properties: {
+                location: {
+                    type: "string",
+                    description: "The city name (e.g., 'London', 'New York')"
+                }
+            },
+            required: ["location"]
         }
     }
 ];
@@ -340,6 +321,12 @@ async function streamChat(endpoint, body, options) {
     let responseText = '';
     let thinkingText = '';
     let inThinking = false;
+    let isFirstDebugRequest = true;
+    
+    // Track tool calls and results for building conversation history
+    let currentToolCalls = [];
+    let currentToolResults = [];
+    let currentAssistantContent = []; // Track full assistant content (text + tool_use blocks)
 
     try {
         const response = await fetch(endpoint, {
@@ -365,7 +352,9 @@ async function streamChat(endpoint, body, options) {
 
                         switch (data.type) {
                             case 'debug_request':
-                                updateDebugPanel(debugPanel, { request: data.data });
+                                // Append debug requests to show all iterations (including tool use messages)
+                                updateDebugPanel(debugPanel, { request: data.data }, !isFirstDebugRequest);
+                                isFirstDebugRequest = false;
                                 break;
 
                             case 'debug_response':
@@ -395,20 +384,99 @@ async function streamChat(endpoint, body, options) {
                                 break;
 
                             case 'tool_call':
-                                // Show tool call
+                                console.log('[TOOL_CALL] Received:', JSON.stringify(data.data));
+                                console.log('[TOOL_CALL] Current responseText:', responseText);
+                                console.log('[TOOL_CALL] currentAssistantContent before:', JSON.stringify(currentAssistantContent));
+                                
+                                // Show tool call in UI
                                 const toolCallDiv = createMessageElement('tool_call',
                                     `Calling: ${data.data.name}\nInput: ${JSON.stringify(data.data.input, null, 2)}`,
                                     { toolName: data.data.name });
                                 container.insertBefore(toolCallDiv, streamingDiv);
+                                
+                                // If there's text before this tool call (first tool in turn), add it to assistant content
+                                if (responseText && currentAssistantContent.length === 0) {
+                                    currentAssistantContent.push({
+                                        type: 'text',
+                                        text: responseText
+                                    });
+                                    console.log('[TOOL_CALL] Added text to assistant content');
+                                }
+                                
+                                // Add tool_use to assistant content
+                                currentAssistantContent.push({
+                                    type: 'tool_use',
+                                    id: data.data.id,
+                                    name: data.data.name,
+                                    input: data.data.input
+                                });
+                                
+                                // Track tool call count for matching with results
+                                currentToolCalls.push({
+                                    type: 'tool_use',
+                                    id: data.data.id,
+                                    name: data.data.name,
+                                    input: data.data.input
+                                });
+                                
+                                console.log('[TOOL_CALL] currentAssistantContent after:', JSON.stringify(currentAssistantContent));
+                                console.log('[TOOL_CALL] currentToolCalls count:', currentToolCalls.length);
                                 break;
 
                             case 'tool_result':
-                                // Show tool result
+                                console.log('[TOOL_RESULT] Received:', JSON.stringify(data.data));
+                                console.log('[TOOL_RESULT] currentToolCalls.length:', currentToolCalls.length);
+                                console.log('[TOOL_RESULT] currentToolResults.length before:', currentToolResults.length);
+                                
+                                // Show tool result in UI
                                 const toolResultDiv = createMessageElement('tool_result',
                                     `Result from ${data.data.name}:\n${data.data.result}`,
                                     { toolName: data.data.name });
                                 container.insertBefore(toolResultDiv, streamingDiv);
-                                responseText = ''; // Reset for next assistant response
+                                
+                                // Accumulate tool results
+                                currentToolResults.push({
+                                    type: 'tool_result',
+                                    tool_use_id: data.data.tool_use_id,
+                                    content: String(data.data.result)
+                                });
+                                
+                                console.log('[TOOL_RESULT] currentToolResults.length after:', currentToolResults.length);
+                                console.log('[TOOL_RESULT] messagesKey:', messagesKey);
+                                console.log('[TOOL_RESULT] Condition check - currentToolCalls.length > 0:', currentToolCalls.length > 0);
+                                console.log('[TOOL_RESULT] Condition check - currentToolResults.length >= currentToolCalls.length:', currentToolResults.length >= currentToolCalls.length);
+                                
+                                // Immediately add tool messages to state after receiving all results for this turn
+                                // We do this here because tool_result is the last event before the next API call
+                                if (messagesKey && state[messagesKey] && currentToolCalls.length > 0) {
+                                    // Check if we have matching results for all calls
+                                    if (currentToolResults.length >= currentToolCalls.length) {
+                                        console.log('[TOOL_RESULT] Adding tool messages to state!');
+                                        console.log('[TOOL_RESULT] currentAssistantContent:', JSON.stringify(currentAssistantContent));
+                                        
+                                        // Add assistant message with full content (text + tool_use blocks)
+                                        state[messagesKey].push({
+                                            role: 'assistant',
+                                            content: currentAssistantContent.slice()
+                                        });
+                                        
+                                        // Add user message with tool results
+                                        state[messagesKey].push({
+                                            role: 'user',
+                                            content: currentToolResults.slice()
+                                        });
+                                        
+                                        console.log('[TOOL_RESULT] State after adding:', JSON.stringify(state[messagesKey]));
+                                        
+                                        // Reset for next iteration
+                                        currentToolCalls = [];
+                                        currentToolResults = [];
+                                        currentAssistantContent = [];
+                                        responseText = ''; // Reset text after adding to state
+                                    }
+                                } else {
+                                    console.log('[TOOL_RESULT] Condition NOT met, not adding to state');
+                                }
                                 break;
 
                             case 'structured_data':
@@ -428,6 +496,12 @@ async function streamChat(endpoint, body, options) {
                                 return;
 
                             case 'done':
+                                console.log('[DONE] Event received');
+                                console.log('[DONE] responseText:', responseText);
+                                console.log('[DONE] currentToolCalls.length:', currentToolCalls.length);
+                                console.log('[DONE] currentAssistantContent:', JSON.stringify(currentAssistantContent));
+                                console.log('[DONE] Current state:', JSON.stringify(state[messagesKey]));
+                                
                                 // Finalize the message
                                 streamingDiv.classList.remove('streaming');
 
@@ -443,12 +517,14 @@ async function streamChat(endpoint, body, options) {
 
                                     // Store in messages
                                     if (messagesKey && state[messagesKey]) {
+                                        console.log('[DONE] Adding final assistant response to state');
                                         state[messagesKey].push({ role: 'assistant', content: responseText });
                                     }
                                 } else {
                                     streamingDiv.remove();
                                 }
 
+                                console.log('[DONE] Final state:', JSON.stringify(state[messagesKey]));
                                 if (onComplete) onComplete(responseText);
                                 break;
                         }

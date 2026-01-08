@@ -97,7 +97,8 @@ def get_client(config: ConfigModel) -> anthropic.Anthropic:
     """Create Anthropic client with provided config."""
     return anthropic.Anthropic(
         api_key=config.api_key,
-        base_url=config.base_url if config.base_url else None
+        base_url=config.base_url if config.base_url else None,
+        default_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
     )
 
 
@@ -472,7 +473,7 @@ async def chat_with_thinking(request: ThinkingRequest):
 
 @app.post("/api/chat/cached")
 async def chat_with_caching(request: CachingRequest):
-    """Chat endpoint with prompt caching for system prompt and tools."""
+    """Chat endpoint with prompt caching for system prompt and tools, with full tool execution support."""
     client = get_client(request.config)
 
     # Build system with cache control if requested
@@ -497,52 +498,109 @@ async def chat_with_caching(request: CachingRequest):
             # Add cache_control to the last tool (matching notebook pattern)
             tools_content[-1]["cache_control"] = {"type": "ephemeral"}
 
-    params = {
-        "model": request.config.model,
-        "max_tokens": request.max_tokens,
-        "temperature": request.temperature,
-        "messages": [msg.model_dump() for msg in request.messages]
-    }
-    if system_content:
-        params["system"] = system_content
-    if tools_content:
-        params["tools"] = tools_content
-
-    debug_request = format_request_for_debug("/v1/messages (caching)", params)
+    messages = [msg.model_dump() for msg in request.messages]
 
     async def generate():
-        yield f"data: {json.dumps({'type': 'debug_request', 'data': debug_request})}\n\n"
-
         try:
-            with client.messages.stream(**params) as stream:
-                full_response = {"content": [], "model": "", "usage": {}}
+            current_messages = messages.copy()
+            iteration = 0
+            max_iterations = 10  # Prevent infinite loops
 
-                for event in stream:
-                    if hasattr(event, 'type'):
-                        if event.type == 'message_start':
-                            full_response["model"] = event.message.model
-                            full_response["id"] = event.message.id
-                        elif event.type == 'content_block_delta':
-                            if hasattr(event.delta, 'text'):
-                                yield f"data: {json.dumps({'type': 'text', 'data': event.delta.text})}\n\n"
+            while iteration < max_iterations:
+                iteration += 1
 
-                # Get final message with cache stats
-                final_message = stream.get_final_message()
-                full_response["content"] = [
-                    {"type": block.type, "text": block.text if hasattr(block, 'text') else str(block)}
-                    for block in final_message.content
-                ]
-                full_response["usage"] = {
-                    "input_tokens": final_message.usage.input_tokens,
-                    "output_tokens": final_message.usage.output_tokens,
-                    "cache_creation_input_tokens": getattr(final_message.usage, 'cache_creation_input_tokens', 0),
-                    "cache_read_input_tokens": getattr(final_message.usage, 'cache_read_input_tokens', 0)
+                # Build current params for debug logging
+                current_params = {
+                    "model": request.config.model,
+                    "max_tokens": request.max_tokens,
+                    "temperature": request.temperature,
+                    "messages": current_messages,
                 }
-                full_response["stop_reason"] = final_message.stop_reason
+                if system_content:
+                    current_params["system"] = system_content
+                if tools_content:
+                    current_params["tools"] = tools_content
 
-                yield f"data: {json.dumps({'type': 'debug_response', 'data': full_response})}\n\n"
-                yield f"data: {json.dumps({'type': 'cache_stats', 'data': full_response['usage']})}\n\n"
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                # Log the request being sent to the API
+                iter_debug_request = format_request_for_debug(f"/v1/messages (caching) - iteration {iteration}", current_params)
+                yield f"data: {json.dumps({'type': 'debug_request', 'data': iter_debug_request})}\n\n"
+
+                # Make API call (non-streaming to support tool loops)
+                api_params = {
+                    "model": request.config.model,
+                    "max_tokens": request.max_tokens,
+                    "temperature": request.temperature,
+                    "messages": current_messages,
+                }
+                if system_content:
+                    api_params["system"] = system_content
+                if tools_content:
+                    api_params["tools"] = tools_content
+
+                response = client.messages.create(**api_params)
+
+                # Build response data with cache stats
+                response_data = {
+                    "id": response.id,
+                    "model": response.model,
+                    "content": [],
+                    "stop_reason": response.stop_reason,
+                    "usage": {
+                        "input_tokens": response.usage.input_tokens,
+                        "output_tokens": response.usage.output_tokens,
+                        "cache_creation_input_tokens": getattr(response.usage, 'cache_creation_input_tokens', 0),
+                        "cache_read_input_tokens": getattr(response.usage, 'cache_read_input_tokens', 0)
+                    }
+                }
+
+                # Process content blocks
+                assistant_content = []
+                for block in response.content:
+                    if block.type == "text":
+                        response_data["content"].append({"type": "text", "text": block.text})
+                        assistant_content.append({"type": "text", "text": block.text})
+                        yield f"data: {json.dumps({'type': 'text', 'data': block.text})}\n\n"
+                    elif block.type == "tool_use":
+                        # Ensure input is a plain dict for JSON serialization
+                        tool_input = dict(block.input) if hasattr(block.input, 'items') else block.input
+                        tool_info = {
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": tool_input
+                        }
+                        response_data["content"].append(tool_info)
+                        assistant_content.append(tool_info)
+                        yield f"data: {json.dumps({'type': 'tool_call', 'data': tool_info})}\n\n"
+
+                yield f"data: {json.dumps({'type': 'debug_response', 'data': response_data})}\n\n"
+                yield f"data: {json.dumps({'type': 'cache_stats', 'data': response_data['usage']})}\n\n"
+
+                # Check if we need to handle tool calls
+                if response.stop_reason == "tool_use":
+                    # Add assistant message
+                    current_messages.append({"role": "assistant", "content": assistant_content})
+
+                    # Execute tools and add results
+                    tool_results = []
+                    for block in response.content:
+                        if block.type == "tool_use":
+                            result = execute_tool(block.name, block.input)
+                            # Use string content format for tool results
+                            tool_result = {
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": str(result)
+                            }
+                            tool_results.append(tool_result)
+                            yield f"data: {json.dumps({'type': 'tool_result', 'data': {'tool_use_id': block.id, 'name': block.name, 'result': result}})}\n\n"
+
+                    current_messages.append({"role": "user", "content": tool_results})
+                else:
+                    # No more tool calls, we're done
+                    break
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except anthropic.APIError as e:
             yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
