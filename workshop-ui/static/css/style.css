@@ -241,7 +241,7 @@ body {
 .drop-zone {
     border: 2px dashed #dee2e6;
     border-radius: 8px;
-    padding: 2rem;
+    padding: 0.75rem 1rem;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s;
@@ -255,40 +255,58 @@ body {
 
 .drop-zone i {
     color: #6c757d;
+    font-size: 1.5rem !important;
 }
 
-/* Uploaded File Preview */
+.drop-zone p {
+    margin: 0.25rem 0;
+    font-size: 0.875rem;
+}
+
+.drop-zone small {
+    font-size: 0.75rem;
+}
+
+/* Uploaded Files Container */
+#uploadedFiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem !important;
+}
+
+/* Uploaded File Preview - Compact inline style */
 .uploaded-file {
-    display: inline-block;
-    margin: 0.5rem;
-    padding: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.5rem;
     border: 1px solid #dee2e6;
     border-radius: 4px;
-    background-color: #fff;
-    max-width: 150px;
-    text-align: center;
+    background-color: #f8f9fa;
     position: relative;
 }
 
 .uploaded-file img {
-    max-width: 100%;
-    max-height: 100px;
-    object-fit: contain;
+    width: 24px;
+    height: 24px;
+    object-fit: cover;
+    border-radius: 2px;
 }
 
 .uploaded-file .remove-file {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #dc3545;
-    color: white;
+    background: none;
+    color: #dc3545;
     border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    padding: 0;
+    font-size: 14px;
     line-height: 1;
     cursor: pointer;
+    margin-left: 0.25rem;
+}
+
+.uploaded-file .remove-file:hover {
+    color: #a71d2a;
 }
 
 .uploaded-file .file-name {
@@ -296,7 +314,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-top: 0.25rem;
+    max-width: 120px;
 }
 
 /* ============================================================================

@@ -686,12 +686,12 @@ function renderUploadedFiles() {
     const container = document.getElementById('uploadedFiles');
     container.innerHTML = state.uploadedFiles.map((file, index) => `
         <div class="uploaded-file">
-            <button class="remove-file" onclick="removeFile(${index})">&times;</button>
             ${file.file_type === 'image'
-            ? `<img src="data:${file.content_type};base64,${file.base64}" alt="${file.filename}">`
-            : `<i class="bi bi-file-earmark-pdf fs-1 text-danger"></i>`
-        }
-            <div class="file-name">${file.filename}</div>
+                ? `<img src="data:${file.content_type};base64,${file.base64}" alt="${file.filename}">`
+                : `<i class="bi bi-file-earmark-pdf text-danger"></i>`
+            }
+            <span class="file-name" title="${file.filename}">${file.filename}</span>
+            <button class="remove-file" onclick="removeFile(${index})">&times;</button>
         </div>
     `).join('');
 }
