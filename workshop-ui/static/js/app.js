@@ -1764,8 +1764,9 @@ async function runEvaluation() {
             displayResults(result.results, result.stats, duration);
             renderEvalHistory();
 
-            // Switch to results tab
-            document.getElementById('results-tab').click();
+            // Switch to results tab using Bootstrap's Tab API
+            const resultsTab = new bootstrap.Tab(document.getElementById('results-tab'));
+            resultsTab.show();
 
             progressText.textContent = 'Évaluation terminée !';
         } else {
