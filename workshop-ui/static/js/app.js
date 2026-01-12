@@ -15,6 +15,9 @@ const state = {
     filesMessages: [],
     thinkingMessages: [],
     cachingMessages: [],
+    textEditorMessages: [],
+    codeExecMessages: [],
+    citationsMessages: [],
 
     // Uploaded files
     uploadedFiles: [],
@@ -26,7 +29,27 @@ const state = {
     rawViewMode: false,
 
     // Currently streaming
-    isStreaming: false
+    isStreaming: false,
+
+    // Text Editor Tool
+    textEditorSessionId: null,
+    textEditorFiles: [],
+    textEditorHistory: [],
+    textEditorCurrentFile: null,
+    textEditorCodeMirror: null,
+
+    // Code Execution
+    codeExecUploadedFiles: [],
+    codeExecFileIds: [],
+    codeExecCodeMirror: null,
+    codeExecLastCode: '',
+
+    // Citations
+    citationsDocument: null,
+    citationsDocumentBase64: null,
+    citationsDocumentText: null,
+    citationsDocumentType: 'application/pdf',
+    citationsDocumentTitle: 'Document'
 };
 
 // ============================================================================
@@ -487,6 +510,29 @@ async function streamChat(endpoint, body, options) {
 
                             case 'cache_stats':
                                 updateCacheStats(data.data);
+                                break;
+
+                            case 'files_updated':
+                                // Update text editor files list
+                                if (state.textEditorSessionId) {
+                                    state.textEditorFiles = data.data;
+                                    renderTextEditorFileList();
+                                    // Auto-select the first file if none selected
+                                    if (!state.textEditorCurrentFile && data.data.length > 0) {
+                                        selectTextEditorFile(data.data[0].path);
+                                    } else if (state.textEditorCurrentFile) {
+                                        // Refresh current file content
+                                        selectTextEditorFile(state.textEditorCurrentFile);
+                                    }
+                                }
+                                break;
+
+                            case 'history_updated':
+                                // Update text editor history
+                                if (state.textEditorSessionId) {
+                                    state.textEditorHistory = data.data;
+                                    renderTextEditorHistory();
+                                }
                                 break;
 
                             case 'error':
@@ -1940,6 +1986,976 @@ function loadHistoryEntry(idx) {
 }
 
 // ============================================================================
+// Text Editor Tool Section
+// ============================================================================
+
+async function initTextEditorSession() {
+    try {
+        const response = await fetch('/api/texteditor/session', { method: 'POST' });
+        const data = await response.json();
+        state.textEditorSessionId = data.session_id;
+        console.log('Text Editor session created:', state.textEditorSessionId);
+    } catch (error) {
+        console.error('Failed to create text editor session:', error);
+    }
+}
+
+function refreshTextEditorFiles() {
+    if (!state.textEditorSessionId) return;
+
+    fetch(`/api/texteditor/files/${state.textEditorSessionId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                state.textEditorFiles = data.files;
+                renderTextEditorFileList();
+            }
+        });
+}
+
+function renderTextEditorFileList() {
+    const container = document.getElementById('textEditorFileList');
+
+    if (state.textEditorFiles.length === 0) {
+        container.innerHTML = `
+            <div class="text-muted text-center py-3">
+                <i class="bi bi-folder2-open"></i>
+                <small>No files yet</small>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = state.textEditorFiles.map(file => {
+        const icon = getFileIcon(file.path);
+        const isActive = state.textEditorCurrentFile === file.path ? 'active' : '';
+        return `
+            <div class="file-item ${isActive}" onclick="selectTextEditorFile('${escapeHtml(file.path)}')">
+                <i class="bi ${icon}"></i>
+                <span class="file-name">${escapeHtml(file.path)}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconMap = {
+        'py': 'bi-filetype-py',
+        'js': 'bi-filetype-js',
+        'ts': 'bi-filetype-tsx',
+        'html': 'bi-filetype-html',
+        'css': 'bi-filetype-css',
+        'json': 'bi-filetype-json',
+        'md': 'bi-filetype-md',
+        'txt': 'bi-file-text',
+        'xml': 'bi-filetype-xml',
+        'yml': 'bi-filetype-yml',
+        'yaml': 'bi-filetype-yml'
+    };
+    return iconMap[ext] || 'bi-file-earmark';
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function selectTextEditorFile(filePath) {
+    if (!state.textEditorSessionId) return;
+
+    state.textEditorCurrentFile = filePath;
+    document.getElementById('currentEditorFile').textContent = filePath;
+
+    // Refresh file list to update selection
+    renderTextEditorFileList();
+
+    // Fetch file content
+    try {
+        const response = await fetch(`/api/texteditor/file/${state.textEditorSessionId}/${filePath}`);
+        const data = await response.json();
+
+        if (data.success) {
+            await updateTextEditorContent(data.content, filePath);
+        }
+    } catch (error) {
+        console.error('Failed to load file:', error);
+    }
+}
+
+async function updateTextEditorContent(content, filePath) {
+    const container = document.getElementById('textEditorCodeMirror');
+
+    // Load CodeMirror if not already loaded
+    if (typeof window.loadCodeMirror === 'function') {
+        try {
+            const CM = await window.loadCodeMirror();
+
+            // Clear existing editor
+            container.innerHTML = '';
+
+            // Determine language from file extension
+            const ext = filePath.split('.').pop().toLowerCase();
+            const langMap = {
+                'py': CM.languages.python(),
+                'js': CM.languages.javascript(),
+                'ts': CM.languages.javascript(),
+                'json': CM.languages.json(),
+                'md': CM.languages.markdown(),
+                'html': CM.languages.html(),
+                'css': CM.languages.css()
+            };
+
+            const extensions = [CM.basicSetup];
+            if (langMap[ext]) {
+                extensions.push(langMap[ext]);
+            }
+
+            state.textEditorCodeMirror = new CM.EditorView({
+                state: CM.EditorState.create({
+                    doc: content,
+                    extensions: extensions
+                }),
+                parent: container
+            });
+        } catch (error) {
+            console.error('Failed to load CodeMirror:', error);
+            // Fallback to textarea
+            container.innerHTML = `<textarea class="form-control font-monospace" style="height: 280px;" readonly>${escapeHtml(content)}</textarea>`;
+        }
+    } else {
+        // Fallback to simple textarea
+        container.innerHTML = `<textarea class="form-control font-monospace" style="height: 280px;" readonly>${escapeHtml(content)}</textarea>`;
+    }
+}
+
+function renderTextEditorHistory() {
+    const container = document.getElementById('textEditorHistory');
+
+    if (state.textEditorHistory.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center py-2"><small>No edits yet</small></div>';
+        return;
+    }
+
+    container.innerHTML = state.textEditorHistory.map((item, idx) => {
+        const time = new Date(item.timestamp).toLocaleTimeString();
+        const hasOld = item.old_content !== null;
+        const hasNew = item.new_content !== null;
+        const showDiff = hasOld && hasNew && item.command === 'str_replace';
+
+        return `
+            <div class="history-item ${item.command}">
+                <span class="history-time">${time}</span>
+                <div class="history-details">
+                    <div class="history-command">${item.command}</div>
+                    <div class="history-path">${escapeHtml(item.path)}</div>
+                    ${showDiff ? `<span class="history-diff" onclick="toggleHistoryDiff(${idx})">Show diff</span>` : ''}
+                    <div class="diff-preview d-none" id="historyDiff${idx}">
+                        ${item.details.old_str ? `<div class="diff-old">${escapeHtml(item.details.old_str)}</div>` : ''}
+                        ${item.details.new_str ? `<div class="diff-new">${escapeHtml(item.details.new_str)}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleHistoryDiff(idx) {
+    const diffEl = document.getElementById(`historyDiff${idx}`);
+    if (diffEl) {
+        diffEl.classList.toggle('d-none');
+    }
+}
+
+async function sendTextEditorChat() {
+    if (state.isStreaming) return;
+
+    const input = document.getElementById('textEditorChatInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    if (!state.textEditorSessionId) {
+        await initTextEditorSession();
+    }
+
+    input.value = '';
+
+    state.textEditorMessages.push({ role: 'user', content: message });
+
+    const container = document.getElementById('textEditorChatMessages');
+    if (container.querySelector('.text-muted.text-center')) {
+        container.innerHTML = '';
+    }
+
+    const systemPrompt = `You are a helpful coding assistant with access to a text editor tool. You can create, view, edit, and undo changes to files in the sandbox.
+
+Available commands:
+- view: View file contents or directory listing
+- create: Create a new file with content
+- str_replace: Replace a unique string in a file
+- insert: Insert text at a specific line number
+- undo_edit: Undo the last edit to a file
+
+Always use the text editor tool to perform file operations when asked. After making changes, briefly explain what you did.`;
+
+    await streamChat('/api/texteditor/chat', {
+        config: getConfig(),
+        messages: state.textEditorMessages,
+        session_id: state.textEditorSessionId,
+        system: systemPrompt
+    }, {
+        containerId: 'textEditorChatMessages',
+        debugPanelId: 'textEditorDebug',
+        messagesKey: 'textEditorMessages',
+        onComplete: (response) => {
+            if (response) {
+                state.textEditorMessages.push({ role: 'assistant', content: response });
+            }
+        }
+    });
+}
+
+function initTextEditor() {
+    // Initialize session
+    initTextEditorSession();
+
+    // Refresh files button
+    document.getElementById('refreshTextEditorFiles').addEventListener('click', refreshTextEditorFiles);
+
+    // Reset session button
+    document.getElementById('resetTextEditorSession').addEventListener('click', async () => {
+        if (state.textEditorSessionId) {
+            await fetch(`/api/texteditor/session/${state.textEditorSessionId}`, { method: 'DELETE' });
+        }
+        state.textEditorMessages = [];
+        state.textEditorFiles = [];
+        state.textEditorHistory = [];
+        state.textEditorCurrentFile = null;
+        await initTextEditorSession();
+
+        document.getElementById('textEditorChatMessages').innerHTML = `
+            <div class="text-muted text-center py-5">
+                <i class="bi bi-pencil-square fs-1"></i>
+                <p>Ask Claude to create or edit files</p>
+                <small>Try: "Create a Python file called hello.py with a function that prints Hello World"</small>
+            </div>
+        `;
+        document.getElementById('currentEditorFile').textContent = 'No file selected';
+        document.getElementById('textEditorCodeMirror').innerHTML = '';
+        renderTextEditorFileList();
+        renderTextEditorHistory();
+    });
+
+    // Clear chat button
+    document.getElementById('clearTextEditorChat').addEventListener('click', () => {
+        state.textEditorMessages = [];
+        document.getElementById('textEditorChatMessages').innerHTML = `
+            <div class="text-muted text-center py-5">
+                <i class="bi bi-pencil-square fs-1"></i>
+                <p>Ask Claude to create or edit files</p>
+                <small>Try: "Create a Python file called hello.py with a function that prints Hello World"</small>
+            </div>
+        `;
+    });
+
+    // Send button
+    document.getElementById('sendTextEditorChat').addEventListener('click', sendTextEditorChat);
+
+    // Enter key handler
+    document.getElementById('textEditorChatInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendTextEditorChat();
+        }
+    });
+}
+
+// ============================================================================
+// Code Execution Section
+// ============================================================================
+
+function initCodeExecDropZone() {
+    const dropZone = document.getElementById('codeExecDropZone');
+    const fileInput = document.getElementById('codeExecFileInput');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files);
+        for (const file of files) {
+            await uploadCodeExecFile(file);
+        }
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        for (const file of files) {
+            await uploadCodeExecFile(file);
+        }
+        fileInput.value = '';
+    });
+}
+
+async function uploadCodeExecFile(file) {
+    const config = getConfig();
+    if (!config.api_key) {
+        alert('Please configure your API key first');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', config.api_key);
+
+    try {
+        const response = await fetch('/api/codeexec/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            state.codeExecUploadedFiles.push({
+                name: data.filename,
+                file_id: data.file_id,
+                size: data.size,
+                mime_type: data.mime_type
+            });
+            state.codeExecFileIds.push(data.file_id);
+            renderCodeExecUploadedFiles();
+        } else {
+            alert('Upload failed: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('Upload failed: ' + error.message);
+    }
+}
+
+function renderCodeExecUploadedFiles() {
+    const container = document.getElementById('codeExecUploadedFiles');
+
+    if (state.codeExecUploadedFiles.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = state.codeExecUploadedFiles.map((file, idx) => `
+        <div class="uploaded-file">
+            <i class="bi bi-file-earmark"></i>
+            <span class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+            <button class="remove-file" onclick="removeCodeExecFile(${idx})">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function removeCodeExecFile(idx) {
+    state.codeExecUploadedFiles.splice(idx, 1);
+    state.codeExecFileIds.splice(idx, 1);
+    renderCodeExecUploadedFiles();
+}
+
+async function sendCodeExecChat() {
+    if (state.isStreaming) return;
+
+    const input = document.getElementById('codeExecChatInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+
+    state.codeExecMessages.push({ role: 'user', content: message });
+
+    const container = document.getElementById('codeExecChatMessages');
+    if (container.querySelector('.text-muted.text-center')) {
+        container.innerHTML = '';
+    }
+
+    const systemPrompt = `You are a data analysis assistant. You can execute Python code to analyze data and create visualizations.
+
+Important notes:
+- Each code execution starts fresh - reimport all libraries and reload data each time
+- Use matplotlib or seaborn for visualizations
+- Save plots using plt.savefig() to return them
+- Print results to stdout for the user to see
+- Be concise but thorough in your analysis`;
+
+    await streamCodeExecChat('/api/codeexec/chat', {
+        config: getConfig(),
+        messages: state.codeExecMessages,
+        file_ids: state.codeExecFileIds.length > 0 ? state.codeExecFileIds : null,
+        system: systemPrompt
+    }, {
+        containerId: 'codeExecChatMessages',
+        debugPanelId: 'codeExecDebug',
+        messagesKey: 'codeExecMessages'
+    });
+}
+
+async function streamCodeExecChat(endpoint, body, options) {
+    const { containerId, debugPanelId } = options;
+    const container = document.getElementById(containerId);
+    const outputContainer = document.getElementById('codeExecOutput');
+    const imagesContainer = document.getElementById('codeExecImages');
+    const downloadsContainer = document.getElementById('codeExecDownloads');
+    const codeContainer = document.getElementById('codeExecCodeMirror');
+
+    state.isStreaming = true;
+
+    // Add user message to UI
+    if (body.messages && body.messages.length > 0) {
+        const lastUserMsg = body.messages[body.messages.length - 1];
+        if (lastUserMsg.role === 'user') {
+            container.appendChild(createMessageElement('user', lastUserMsg.content));
+        }
+    }
+
+    const streamingDiv = addStreamingIndicator(container);
+    let responseText = '';
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        switch (data.type) {
+                            case 'debug_request':
+                                updateDebugPanel(debugPanelId, { request: data.data }, false);
+                                break;
+
+                            case 'debug_response':
+                                updateDebugPanel(debugPanelId, { response: data.data }, true);
+                                break;
+
+                            case 'text':
+                                responseText += data.data;
+                                streamingDiv.querySelector('.message-content').innerHTML = renderMarkdown(responseText);
+                                scrollToBottom(container);
+                                break;
+
+                            case 'tool_call':
+                                if (data.data.name === 'code_execution' && data.data.input) {
+                                    const code = data.data.input.code || '';
+                                    state.codeExecLastCode = code;
+                                    await displayCodeInEditor(code, codeContainer);
+                                }
+                                break;
+
+                            case 'code_execution_result':
+                                // Display output
+                                let outputHtml = '';
+                                if (data.data.stdout) {
+                                    outputHtml += `<div class="stdout">${escapeHtml(data.data.stdout)}</div>`;
+                                }
+                                if (data.data.stderr) {
+                                    outputHtml += `<div class="stderr">${escapeHtml(data.data.stderr)}</div>`;
+                                }
+                                if (!outputHtml) {
+                                    outputHtml = '<div class="text-muted">No output</div>';
+                                }
+                                outputContainer.innerHTML = outputHtml;
+
+                                // Display images
+                                if (data.data.content) {
+                                    imagesContainer.innerHTML = '';
+                                    downloadsContainer.innerHTML = '';
+
+                                    for (const item of data.data.content) {
+                                        if (item.type === 'image' && item.source) {
+                                            const imgSrc = `data:${item.source.media_type};base64,${item.source.data}`;
+                                            imagesContainer.innerHTML += `<img src="${imgSrc}" alt="Generated visualization">`;
+                                        } else if (item.type === 'file' && item.file_id) {
+                                            const config = getConfig();
+                                            downloadsContainer.innerHTML += `
+                                                <div class="download-item" onclick="downloadCodeExecFile('${item.file_id}')">
+                                                    <i class="bi bi-download"></i>
+                                                    <span>Download file</span>
+                                                </div>
+                                            `;
+                                        }
+                                    }
+                                }
+                                break;
+
+                            case 'error':
+                                showError(data.data, containerId);
+                                break;
+
+                            case 'done':
+                                break;
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse SSE data:', e);
+                    }
+                }
+            }
+        }
+
+        // Finalize
+        streamingDiv.remove();
+        if (responseText) {
+            state.codeExecMessages.push({ role: 'assistant', content: responseText });
+            container.appendChild(createMessageElement('assistant', responseText));
+        }
+
+    } catch (error) {
+        streamingDiv.remove();
+        showError(error.message, containerId);
+    } finally {
+        state.isStreaming = false;
+    }
+}
+
+async function displayCodeInEditor(code, container) {
+    if (typeof window.loadCodeMirror === 'function') {
+        try {
+            const CM = await window.loadCodeMirror();
+            container.innerHTML = '';
+
+            state.codeExecCodeMirror = new CM.EditorView({
+                state: CM.EditorState.create({
+                    doc: code,
+                    extensions: [CM.basicSetup, CM.languages.python()]
+                }),
+                parent: container
+            });
+        } catch (error) {
+            container.innerHTML = `<pre class="bg-dark text-light p-3 rounded"><code>${escapeHtml(code)}</code></pre>`;
+        }
+    } else {
+        container.innerHTML = `<pre class="bg-dark text-light p-3 rounded"><code>${escapeHtml(code)}</code></pre>`;
+    }
+}
+
+function downloadCodeExecFile(fileId) {
+    const config = getConfig();
+    window.open(`/api/codeexec/download/${fileId}?api_key=${encodeURIComponent(config.api_key)}`, '_blank');
+}
+
+function initCodeExec() {
+    initCodeExecDropZone();
+
+    // Clear chat button
+    document.getElementById('clearCodeExecChat').addEventListener('click', () => {
+        state.codeExecMessages = [];
+        document.getElementById('codeExecChatMessages').innerHTML = `
+            <div class="text-muted text-center py-5">
+                <i class="bi bi-terminal fs-1"></i>
+                <p>Ask Claude to analyze data or generate visualizations</p>
+                <small>Try: "Analyze this CSV and create a chart showing the main trends"</small>
+            </div>
+        `;
+        document.getElementById('codeExecOutput').innerHTML = '<div class="text-muted text-center py-3"><small>Output will appear here after code execution</small></div>';
+        document.getElementById('codeExecImages').innerHTML = '';
+        document.getElementById('codeExecDownloads').innerHTML = '';
+        document.getElementById('codeExecCodeMirror').innerHTML = '';
+    });
+
+    // Send button
+    document.getElementById('sendCodeExecChat').addEventListener('click', sendCodeExecChat);
+
+    // Enter key handler
+    document.getElementById('codeExecChatInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendCodeExecChat();
+        }
+    });
+}
+
+// ============================================================================
+// Citations Section
+// ============================================================================
+
+function initCitationsDropZone() {
+    const dropZone = document.getElementById('citationsDropZone');
+    const fileInput = document.getElementById('citationsFileInput');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            await processCitationsFile(file);
+        }
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            await processCitationsFile(file);
+        }
+        fileInput.value = '';
+    });
+}
+
+async function processCitationsFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    let mediaType;
+    let isText = false;
+
+    switch (ext) {
+        case 'pdf':
+            mediaType = 'application/pdf';
+            break;
+        case 'txt':
+        case 'md':
+            mediaType = 'text/plain';
+            isText = true;
+            break;
+        case 'html':
+            mediaType = 'text/html';
+            isText = true;
+            break;
+        default:
+            alert('Unsupported file type. Please use PDF, TXT, MD, or HTML.');
+            return;
+    }
+
+    try {
+        if (isText) {
+            const text = await file.text();
+            state.citationsDocumentText = text;
+            state.citationsDocumentBase64 = null;
+        } else {
+            const arrayBuffer = await file.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            state.citationsDocumentBase64 = base64;
+            state.citationsDocumentText = null;
+        }
+
+        state.citationsDocumentType = mediaType;
+        state.citationsDocumentTitle = file.name;
+        state.citationsDocument = file;
+
+        renderCitationsUploadedDoc();
+        document.getElementById('sendCitationsChat').disabled = false;
+
+    } catch (error) {
+        console.error('Error processing file:', error);
+        alert('Failed to process file: ' + error.message);
+    }
+}
+
+function renderCitationsUploadedDoc() {
+    const container = document.getElementById('citationsUploadedDoc');
+
+    if (!state.citationsDocument && !state.citationsDocumentText) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const isPdf = state.citationsDocumentType === 'application/pdf';
+    const icon = isPdf ? 'bi-file-pdf' : 'bi-file-text';
+    const typeClass = isPdf ? 'pdf' : 'text';
+
+    const name = state.citationsDocumentTitle || 'Document';
+    const size = state.citationsDocument ? formatFileSize(state.citationsDocument.size) : '';
+
+    container.innerHTML = `
+        <div class="uploaded-doc ${typeClass}">
+            <i class="bi ${icon}"></i>
+            <div class="doc-info">
+                <div class="doc-name">${escapeHtml(name)}</div>
+                <div class="doc-size">${size}</div>
+            </div>
+            <span class="remove-doc" onclick="removeCitationsDoc()">
+                <i class="bi bi-x-lg"></i>
+            </span>
+        </div>
+    `;
+}
+
+function removeCitationsDoc() {
+    state.citationsDocument = null;
+    state.citationsDocumentBase64 = null;
+    state.citationsDocumentText = null;
+    state.citationsDocumentTitle = 'Document';
+    renderCitationsUploadedDoc();
+    document.getElementById('sendCitationsChat').disabled = true;
+}
+
+async function sendCitationsChat() {
+    if (state.isStreaming) return;
+
+    const input = document.getElementById('citationsChatInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Check for text input tab content
+    const textInput = document.getElementById('citationsTextInput');
+    const textTitle = document.getElementById('citationsTextTitle');
+
+    if (!state.citationsDocumentBase64 && !state.citationsDocumentText) {
+        // Check if user pasted text
+        if (textInput.value.trim()) {
+            state.citationsDocumentText = textInput.value.trim();
+            state.citationsDocumentTitle = textTitle.value.trim() || 'Pasted Text';
+            state.citationsDocumentType = 'text/plain';
+            document.getElementById('sendCitationsChat').disabled = false;
+        } else {
+            alert('Please upload a document or paste text first');
+            return;
+        }
+    }
+
+    input.value = '';
+
+    state.citationsMessages.push({ role: 'user', content: message });
+
+    const container = document.getElementById('citationsChatMessages');
+    if (container.querySelector('.text-muted.text-center')) {
+        container.innerHTML = '';
+    }
+
+    await streamCitationsChat('/api/citations/chat', {
+        config: getConfig(),
+        messages: state.citationsMessages,
+        document_base64: state.citationsDocumentBase64,
+        document_text: state.citationsDocumentText,
+        document_type: state.citationsDocumentType,
+        document_title: state.citationsDocumentTitle
+    }, {
+        containerId: 'citationsChatMessages',
+        debugPanelId: 'citationsDebug',
+        messagesKey: 'citationsMessages'
+    });
+}
+
+async function streamCitationsChat(endpoint, body, options) {
+    const { containerId, debugPanelId } = options;
+    const container = document.getElementById(containerId);
+
+    state.isStreaming = true;
+
+    // Add user message to UI
+    if (body.messages && body.messages.length > 0) {
+        const lastUserMsg = body.messages[body.messages.length - 1];
+        if (lastUserMsg.role === 'user') {
+            container.appendChild(createMessageElement('user', lastUserMsg.content));
+        }
+    }
+
+    const streamingDiv = addStreamingIndicator(container);
+    let responseText = '';
+    let citations = [];
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        switch (data.type) {
+                            case 'debug_request':
+                                updateDebugPanel(debugPanelId, { request: data.data }, false);
+                                break;
+
+                            case 'debug_response':
+                                updateDebugPanel(debugPanelId, { response: data.data }, true);
+                                break;
+
+                            case 'text_with_citations':
+                                responseText = data.data.text;
+                                citations = data.data.citations || [];
+
+                                // Render text with citation markers
+                                const renderedContent = renderTextWithCitations(responseText, citations);
+                                streamingDiv.querySelector('.message-content').innerHTML = renderedContent;
+                                scrollToBottom(container);
+                                break;
+
+                            case 'error':
+                                showError(data.data, containerId);
+                                break;
+
+                            case 'done':
+                                break;
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse SSE data:', e);
+                    }
+                }
+            }
+        }
+
+        // Finalize
+        streamingDiv.remove();
+        if (responseText) {
+            state.citationsMessages.push({ role: 'assistant', content: responseText });
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message message-assistant message-with-citations';
+            msgDiv.innerHTML = `
+                <div class="message-role">Assistant</div>
+                <div class="message-content">${renderTextWithCitations(responseText, citations)}</div>
+            `;
+            container.appendChild(msgDiv);
+
+            // Store citations for modal display
+            msgDiv.setAttribute('data-citations', JSON.stringify(citations));
+        }
+
+    } catch (error) {
+        streamingDiv.remove();
+        showError(error.message, containerId);
+    } finally {
+        state.isStreaming = false;
+    }
+}
+
+function renderTextWithCitations(text, citations) {
+    if (!citations || citations.length === 0) {
+        return renderMarkdown(text);
+    }
+
+    // Create citation markers [1], [2], etc.
+    let html = renderMarkdown(text);
+
+    // Add citation references at the end
+    const citationRefs = citations.map((c, idx) => {
+        const preview = c.cited_text ? c.cited_text.substring(0, 100) + (c.cited_text.length > 100 ? '...' : '') : '';
+        return `
+            <span class="citation-marker"
+                  onclick="showCitationDetail(${idx})"
+                  data-citation-index="${idx}"
+                  title="${escapeHtml(preview)}">
+                [${idx + 1}]
+            </span>
+        `;
+    }).join(' ');
+
+    // Store citations globally for modal access
+    window.currentCitations = citations;
+
+    return html + `<div class="mt-2"><small class="text-muted">Citations: </small>${citationRefs}</div>`;
+}
+
+function showCitationDetail(idx) {
+    const citations = window.currentCitations || [];
+    const citation = citations[idx];
+    if (!citation) return;
+
+    document.getElementById('citationModalDocTitle').textContent = citation.document_title || 'Unknown';
+    document.getElementById('citationModalText').textContent = citation.cited_text || 'No text available';
+
+    const pageContainer = document.getElementById('citationModalPageContainer');
+    const charContainer = document.getElementById('citationModalCharContainer');
+
+    if (citation.page_number !== undefined) {
+        document.getElementById('citationModalPage').textContent = citation.page_number;
+        pageContainer.style.display = 'block';
+    } else {
+        pageContainer.style.display = 'none';
+    }
+
+    if (citation.start_char_index !== undefined && citation.end_char_index !== undefined) {
+        document.getElementById('citationModalCharRange').textContent = `${citation.start_char_index} - ${citation.end_char_index}`;
+        charContainer.style.display = 'block';
+    } else {
+        charContainer.style.display = 'none';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('citationDetailModal'));
+    modal.show();
+}
+
+function initCitations() {
+    initCitationsDropZone();
+
+    // Text input change handler to enable send button
+    document.getElementById('citationsTextInput').addEventListener('input', (e) => {
+        const hasText = e.target.value.trim().length > 0;
+        const hasFile = state.citationsDocumentBase64 || state.citationsDocumentText;
+        document.getElementById('sendCitationsChat').disabled = !hasText && !hasFile;
+    });
+
+    // Clear chat button
+    document.getElementById('clearCitationsChat').addEventListener('click', () => {
+        state.citationsMessages = [];
+        document.getElementById('citationsChatMessages').innerHTML = `
+            <div class="text-muted text-center py-5">
+                <i class="bi bi-quote fs-1"></i>
+                <p>Upload a document and ask questions</p>
+                <small>Claude will cite specific passages from the document</small>
+            </div>
+        `;
+    });
+
+    // Send button
+    document.getElementById('sendCitationsChat').addEventListener('click', sendCitationsChat);
+
+    // Enter key handler
+    document.getElementById('citationsChatInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendCitationsChat();
+        }
+    });
+}
+
+// ============================================================================
 // Initialize All Sections
 // ============================================================================
 
@@ -1949,10 +2965,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initBasicChat();
     initPromptEngineering();
     initToolUse();
+    initTextEditor();
     initFileUpload();
+    initCodeExec();
     initThinking();
     initCaching();
     initStructuredData();
+    initCitations();
     initEvaluation();
 
     // Initialize syntax highlighting

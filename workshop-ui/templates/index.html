@@ -37,8 +37,18 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="textEditorSection">
+                        <i class="bi bi-pencil-square"></i> Text Editor
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="#" class="nav-link" data-section="filesSection">
                         <i class="bi bi-file-earmark-image"></i> File Upload
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="codeExecSection">
+                        <i class="bi bi-terminal"></i> Code Execution
                     </a>
                 </li>
                 <li class="nav-item">
@@ -54,6 +64,11 @@
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-section="structuredSection">
                         <i class="bi bi-braces"></i> Structured Data
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="citationsSection">
+                        <i class="bi bi-quote"></i> Citations
                     </a>
                 </li>
                 <li class="nav-item">
@@ -287,7 +302,97 @@
                     </div>
                 </section>
 
-                <!-- 4. File Upload Section -->
+                <!-- 4. Text Editor Tool Section -->
+                <section id="textEditorSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-pencil-square"></i> Text Editor Tool</h4>
+                        <p class="text-muted mb-0">Claude's built-in file editing capabilities with view, create, replace, insert, and undo</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <!-- File Explorer & Editor -->
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-folder"></i> Sandbox Files</span>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-secondary" id="refreshTextEditorFiles">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" id="resetTextEditorSession">
+                                            <i class="bi bi-trash"></i> Reset
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="file-explorer" id="textEditorFileList">
+                                                <div class="text-muted text-center py-3">
+                                                    <i class="bi bi-folder2-open"></i>
+                                                    <small>No files yet</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="editor-header mb-2">
+                                                <span class="text-muted" id="currentEditorFile">No file selected</span>
+                                            </div>
+                                            <div id="textEditorCodeMirror" class="code-editor-container"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- History Timeline -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="bi bi-clock-history"></i> Edit History
+                                </div>
+                                <div class="card-body history-timeline" id="textEditorHistory">
+                                    <div class="text-muted text-center py-2">
+                                        <small>No edits yet</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chat Interface -->
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Chat with Claude</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearTextEditorChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="textEditorChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-pencil-square fs-1"></i>
+                                        <p>Ask Claude to create or edit files</p>
+                                        <small>Try: "Create a Python file called hello.py with a function that prints Hello World"</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="textEditorChatInput" rows="2"
+                                          placeholder="Ask Claude to create or edit files..."></textarea>
+                                <button class="btn btn-primary" id="sendTextEditorChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="textEditorDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. File Upload Section -->
                 <section id="filesSection" class="content-section">
                     <div class="section-header">
                         <h4><i class="bi bi-file-earmark-image"></i> File Upload</h4>
@@ -345,7 +450,104 @@
                     </div>
                 </section>
 
-                <!-- 5. Extended Thinking Section -->
+                <!-- 6. Code Execution Section -->
+                <section id="codeExecSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-terminal"></i> Code Execution</h4>
+                        <p class="text-muted mb-0">Execute Python code in Anthropic's sandbox environment</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <!-- File Upload for Analysis -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="bi bi-cloud-upload"></i> Upload Files for Analysis
+                                </div>
+                                <div class="card-body">
+                                    <div class="drop-zone" id="codeExecDropZone">
+                                        <i class="bi bi-file-earmark-code fs-1"></i>
+                                        <p>Drag & drop files here or click to browse</p>
+                                        <small class="text-muted">Supported: CSV, Excel, JSON, images, text files</small>
+                                        <input type="file" id="codeExecFileInput" class="d-none"
+                                               accept=".csv,.xlsx,.xls,.json,.txt,.py,.md,.png,.jpg,.jpeg,.gif,.webp" multiple>
+                                    </div>
+                                    <div id="codeExecUploadedFiles" class="mt-3">
+                                        <!-- Uploaded files will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Code Display -->
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-code-slash"></i> Generated Code</span>
+                                    <button class="btn btn-sm btn-outline-secondary" id="runCodeAgain" disabled>
+                                        <i class="bi bi-play"></i> Re-run
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="codeExecCodeMirror" class="code-editor-container"></div>
+                                </div>
+                            </div>
+
+                            <!-- Output Display -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="bi bi-terminal"></i> Execution Output
+                                </div>
+                                <div class="card-body">
+                                    <div id="codeExecOutput" class="code-output">
+                                        <div class="text-muted text-center py-3">
+                                            <small>Output will appear here after code execution</small>
+                                        </div>
+                                    </div>
+                                    <div id="codeExecImages" class="output-images mt-3">
+                                        <!-- Generated images will appear here -->
+                                    </div>
+                                    <div id="codeExecDownloads" class="output-downloads mt-3">
+                                        <!-- Downloadable files will appear here -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chat Interface -->
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Chat with Claude</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearCodeExecChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="codeExecChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-terminal fs-1"></i>
+                                        <p>Ask Claude to analyze data or generate visualizations</p>
+                                        <small>Try: "Analyze this CSV and create a chart showing the main trends"</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="codeExecChatInput" rows="2"
+                                          placeholder="Describe what analysis or code you want Claude to run..."></textarea>
+                                <button class="btn btn-primary" id="sendCodeExecChat">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="codeExecDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. Extended Thinking Section -->
                 <section id="thinkingSection" class="content-section">
                     <div class="section-header">
                         <h4><i class="bi bi-lightbulb"></i> Extended Thinking</h4>
@@ -533,7 +735,93 @@
                     </div>
                 </section>
 
-                <!-- 8. Prompt Evaluation Section -->
+                <!-- 11. Citations Section -->
+                <section id="citationsSection" class="content-section">
+                    <div class="section-header">
+                        <h4><i class="bi bi-quote"></i> Citations</h4>
+                        <p class="text-muted mb-0">Get responses with citations that reference the source document</p>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <!-- Document Upload -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <i class="bi bi-file-earmark-text"></i> Upload Document
+                                </div>
+                                <div class="card-body">
+                                    <ul class="nav nav-tabs mb-3" id="citationsDocTabs">
+                                        <li class="nav-item">
+                                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#citationsUploadTab">
+                                                <i class="bi bi-upload"></i> Upload File
+                                            </button>
+                                        </li>
+                                        <li class="nav-item">
+                                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#citationsTextTab">
+                                                <i class="bi bi-textarea-t"></i> Paste Text
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content">
+                                        <div class="tab-pane fade show active" id="citationsUploadTab">
+                                            <div class="drop-zone" id="citationsDropZone">
+                                                <i class="bi bi-file-pdf fs-1"></i>
+                                                <p>Drag & drop a document or click to browse</p>
+                                                <small class="text-muted">Supported: PDF, TXT, MD, HTML</small>
+                                                <input type="file" id="citationsFileInput" class="d-none"
+                                                       accept=".pdf,.txt,.md,.html">
+                                            </div>
+                                            <div id="citationsUploadedDoc" class="mt-3">
+                                                <!-- Uploaded document info will appear here -->
+                                            </div>
+                                        </div>
+                                        <div class="tab-pane fade" id="citationsTextTab">
+                                            <textarea class="form-control" id="citationsTextInput" rows="6"
+                                                      placeholder="Paste your document text here..."></textarea>
+                                            <input type="text" class="form-control mt-2" id="citationsTextTitle"
+                                                   placeholder="Document title (optional)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Chat with Citations -->
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>Ask Questions About the Document</span>
+                                    <button class="btn btn-sm btn-outline-danger" id="clearCitationsChat">
+                                        <i class="bi bi-trash"></i> Clear
+                                    </button>
+                                </div>
+                                <div class="card-body chat-container" id="citationsChatMessages">
+                                    <div class="text-muted text-center py-5">
+                                        <i class="bi bi-quote fs-1"></i>
+                                        <p>Upload a document and ask questions</p>
+                                        <small>Claude will cite specific passages from the document</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <textarea class="form-control" id="citationsChatInput" rows="2"
+                                          placeholder="Ask a question about the document..."></textarea>
+                                <button class="btn btn-primary" id="sendCitationsChat" disabled>
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bug"></i> Debug Panel
+                                </div>
+                                <div class="card-body debug-panel" id="citationsDebug">
+                                    <pre><code class="language-json">// Request/Response will appear here</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 12. Prompt Evaluation Section -->
                 <section id="evaluationSection" class="content-section">
                     <div class="section-header">
                         <h4><i class="bi bi-clipboard-check"></i> Prompt Evaluation</h4>
@@ -913,6 +1201,36 @@
         </div>
     </div>
 
+    <!-- Citation Detail Modal -->
+    <div class="modal fade" id="citationDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-quote"></i> Citation Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Source Document:</strong>
+                        <span id="citationModalDocTitle" class="text-muted"></span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Cited Text:</strong>
+                        <div class="citation-excerpt bg-light p-3 rounded" id="citationModalText"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6" id="citationModalPageContainer" style="display: none;">
+                            <strong>Page:</strong> <span id="citationModalPage"></span>
+                        </div>
+                        <div class="col-md-6" id="citationModalCharContainer" style="display: none;">
+                            <strong>Character Range:</strong> <span id="citationModalCharRange"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="d-none">
         <div class="spinner-border text-primary" role="status">
@@ -926,6 +1244,43 @@
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
     <!-- Highlight.js for syntax highlighting -->
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+    <!-- CodeMirror 6 (lazy loaded in app.js when needed) -->
+    <script type="module">
+        // CodeMirror will be loaded on demand
+        window.loadCodeMirror = async function() {
+            if (window.CodeMirror) return window.CodeMirror;
+
+            // Load CodeMirror dynamically
+            const [
+                { EditorView, basicSetup },
+                { EditorState },
+                { javascript },
+                { python },
+                { json },
+                { markdown },
+                { html },
+                { css }
+            ] = await Promise.all([
+                import('https://esm.sh/@codemirror/basic-setup@0.20.0'),
+                import('https://esm.sh/@codemirror/state@6.2.0'),
+                import('https://esm.sh/@codemirror/lang-javascript@6.1.9'),
+                import('https://esm.sh/@codemirror/lang-python@6.1.3'),
+                import('https://esm.sh/@codemirror/lang-json@6.0.1'),
+                import('https://esm.sh/@codemirror/lang-markdown@6.1.1'),
+                import('https://esm.sh/@codemirror/lang-html@6.4.3'),
+                import('https://esm.sh/@codemirror/lang-css@6.1.1')
+            ]);
+
+            window.CodeMirror = {
+                EditorView,
+                EditorState,
+                basicSetup,
+                languages: { javascript, python, json, markdown, html, css }
+            };
+
+            return window.CodeMirror;
+        };
+    </script>
     <!-- Custom JS -->
     <script src="/static/js/app.js"></script>
 </body>
