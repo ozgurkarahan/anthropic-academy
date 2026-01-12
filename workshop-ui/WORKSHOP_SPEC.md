@@ -11,21 +11,51 @@ This is an interactive Workshop UI (FastAPI + Bootstrap) for experimenting with 
 
 ```
 workshop-ui/
-├── main.py                 # FastAPI backend with all API endpoints
+├── main.py                     # FastAPI entry point (~70 lines)
+├── app/                        # Backend modules
+│   ├── routes/                 # API endpoints
+│   │   ├── chat.py             # /api/chat, /api/chat/tools, /api/chat/thinking
+│   │   ├── caching.py          # /api/chat/cached
+│   │   ├── structured.py       # /api/structured
+│   │   ├── upload.py           # /api/upload
+│   │   ├── eval.py             # /api/eval/*
+│   │   ├── texteditor.py       # /api/texteditor/*
+│   │   ├── codeexec.py         # /api/codeexec/*
+│   │   └── citations.py        # /api/citations/*
+│   ├── models/                 # Pydantic models
+│   │   ├── chat.py             # ConfigModel, MessageModel, ChatRequest
+│   │   ├── tools.py            # ToolDefinition, ToolChatRequest
+│   │   ├── eval.py             # TestCase, EvalRunRequest
+│   │   └── features.py         # TextEditorChatRequest, CodeExecChatRequest, etc.
+│   ├── tools/                  # Tool implementations
+│   │   ├── text_editor.py      # TextEditorTool class
+│   │   └── sample_tools.py     # SAMPLE_TOOLS, execute_tool()
+│   └── utils/                  # Utilities
+│       ├── client.py           # get_client(), get_code_exec_client()
+│       └── helpers.py          # truncate_base64(), format_request_for_debug()
 ├── templates/
-│   └── index.html          # Single-page Bootstrap frontend
+│   └── index.html              # Single-page Bootstrap frontend
 ├── static/
 │   ├── css/
-│   │   └── style.css       # Custom styles for all sections
-│   └── js/
-│       └── app.js          # Frontend JavaScript (state, handlers, streaming)
-└── WORKSHOP_SPEC.md        # This specification file
+│   │   └── style.css           # Custom styles
+│   └── js/                     # Frontend modules (ES6)
+│       ├── app.js              # Entry point (~80 lines)
+│       ├── state.js            # Global state management
+│       ├── utils/              # Utilities (api, dom, formatting)
+│       ├── core/               # Core modules (streaming, sidebar)
+│       └── sections/           # Feature modules (11 sections)
+├── tests/                      # Pytest tests
+│   ├── conftest.py             # Fixtures
+│   ├── test_endpoints.py       # API endpoint tests
+│   └── test_text_editor_tool.py # TextEditorTool tests
+└── WORKSHOP_SPEC.md            # This specification file
 ```
 
 ## Technology Stack
 
-- **Backend**: FastAPI with SSE streaming
-- **Frontend**: Bootstrap 5, vanilla JavaScript
+- **Backend**: FastAPI with SSE streaming, modular router architecture
+- **Frontend**: Bootstrap 5, ES6 modules
+- **Testing**: pytest with FastAPI TestClient
 - **Libraries**:
   - marked.js (Markdown rendering)
   - highlight.js (syntax highlighting)
@@ -136,8 +166,11 @@ LLM-as-Judge evaluation system.
 
 ## Frontend State Management
 
+State is centralized in `static/js/state.js` and exported as ES6 module:
+
 ```javascript
-const state = {
+// static/js/state.js
+export const state = {
     // Conversation histories
     chatMessages: [],
     promptMessages: [],
@@ -184,6 +217,18 @@ const state = {
 };
 ```
 
+### Frontend Module Structure
+
+| Module | Location | Responsibility |
+|--------|----------|----------------|
+| `state.js` | `/js/` | Global state, localStorage persistence |
+| `api.js` | `/js/utils/` | API configuration helpers |
+| `dom.js` | `/js/utils/` | DOM manipulation, message rendering |
+| `formatting.js` | `/js/utils/` | JSON formatting, Markdown rendering |
+| `streaming.js` | `/js/core/` | SSE stream handling |
+| `sidebar.js` | `/js/core/` | Navigation sidebar |
+| `*.js` | `/js/sections/` | Feature-specific modules (11 files) |
+
 ## SSE Event Types
 
 Standard events handled by `streamChat()`:
@@ -204,7 +249,7 @@ Standard events handled by `streamChat()`:
 
 ## Backend Key Classes
 
-### TextEditorTool
+### TextEditorTool (`app/tools/text_editor.py`)
 Manages file operations in sandboxed environment:
 ```python
 class TextEditorTool:
@@ -218,6 +263,25 @@ class TextEditorTool:
     def get_file_content(self, file_path) -> str
     def get_history(self) -> List[Dict]
 ```
+
+### Router Organization (`app/routes/`)
+Each router module follows this pattern:
+```python
+from fastapi import APIRouter
+router = APIRouter()
+
+@router.post("/endpoint")
+async def endpoint_handler(request: RequestModel):
+    # Implementation
+```
+
+### Pydantic Models (`app/models/`)
+| Module | Models |
+|--------|--------|
+| `chat.py` | ConfigModel, MessageModel, ChatRequest |
+| `tools.py` | ToolDefinition, ToolChatRequest, ThinkingRequest |
+| `eval.py` | TestCase, GenerateDatasetRequest, EvalRunRequest |
+| `features.py` | CachingRequest, StructuredRequest, TextEditorChatRequest, CodeExecChatRequest, CitationsChatRequest |
 
 ## Patterns & Conventions
 
@@ -252,10 +316,33 @@ All endpoints accept a `config` object:
 
 ```bash
 cd workshop-ui
+
+# Install dependencies
 pip install -r requirements.txt  # or: uv pip install -e .
-python main.py
+
+# Run the server
+uvicorn main:app --reload --port 8000
 # Open http://localhost:8000
 ```
+
+## Running Tests
+
+```bash
+cd workshop-ui
+
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_text_editor_tool.py -v
+
+# Run with coverage
+pytest tests/ --cov=app --cov-report=html
+```
+
+**Test Coverage:**
+- `test_endpoints.py` - API endpoint validation, streaming responses
+- `test_text_editor_tool.py` - TextEditorTool operations (view, create, str_replace, insert, undo)
 
 ## Future Enhancements (Ideas)
 

@@ -7,10 +7,14 @@ An interactive web interface for testing and learning Claude API features from t
 - **Basic Chat** - Simple conversation with Claude, streaming responses
 - **Prompt Engineering** - Test system prompts, temperature, and max tokens
 - **Tool Use** - Pre-defined sample tools + custom tool JSON editor
+- **Text Editor Tool** - Claude's built-in file editing capabilities with sandbox
 - **File Upload** - Images and PDFs with drag & drop support
+- **Code Execution** - Execute Python code in Anthropic's sandbox (Beta)
 - **Extended Thinking** - See Claude's reasoning process
 - **Prompt Caching** - Test caching with cache statistics display
 - **Structured Data** - Extract structured JSON output using schemas
+- **Citations** - Document Q&A with source citations
+- **Prompt Evaluation** - LLM-as-Judge evaluation system
 
 ### Debug Panel
 
@@ -124,6 +128,40 @@ Extract structured JSON from text:
 - Provide input text
 - Receive structured data matching your schema
 
+### 8. Text Editor Tool
+
+Claude's built-in file editing capabilities:
+- **Commands**: view, create, str_replace, insert, undo_edit
+- Server-side sandbox environment
+- CodeMirror editor with syntax highlighting
+- Timeline view with diff preview
+
+### 9. Code Execution (Beta)
+
+Execute Python code in Anthropic's sandbox:
+- Files API integration for data upload
+- CodeMirror display for generated code
+- Output display (stdout/stderr)
+- Image/visualization rendering
+- File download support
+
+### 10. Citations
+
+Document Q&A with source citations:
+- PDF upload (base64 encoded)
+- Text document support (txt, md, html)
+- Inline citation markers with tooltips
+- Modal popup for citation details
+
+### 11. Prompt Evaluation
+
+LLM-as-Judge evaluation system:
+- Dataset management (create, import, export)
+- Test case editor with AI generation
+- Configurable evaluation criteria
+- Results with scores and pass rate
+- History tracking
+
 ## Sample Tools
 
 Three pre-defined tools are included:
@@ -147,17 +185,26 @@ Three pre-defined tools are included:
 
 ```
 workshop-ui/
-├── main.py              # FastAPI backend
-├── requirements.txt     # Python dependencies
-├── .env.example         # Environment template
-├── README.md            # This file
+├── main.py                     # FastAPI entry point (~70 lines)
+├── app/                        # Backend modules
+│   ├── routes/                 # API endpoints (chat, eval, texteditor, etc.)
+│   ├── models/                 # Pydantic models
+│   ├── tools/                  # Tool implementations (TextEditorTool)
+│   └── utils/                  # Utilities (client, helpers)
 ├── static/
-│   ├── css/
-│   │   └── style.css    # Custom styles
-│   └── js/
-│       └── app.js       # Frontend JavaScript
-└── templates/
-    └── index.html       # Main HTML page
+│   ├── css/style.css           # Custom styles
+│   └── js/                     # Frontend modules (ES6)
+│       ├── app.js              # Entry point
+│       ├── state.js            # Global state
+│       ├── utils/              # Utilities (api, dom, formatting)
+│       ├── core/               # Core modules (streaming, sidebar)
+│       └── sections/           # Feature modules (11 sections)
+├── templates/index.html        # Main HTML page
+├── tests/                      # Pytest tests
+├── requirements.txt            # Python dependencies
+├── .env.example                # Environment template
+├── WORKSHOP_SPEC.md            # Detailed specification
+└── README.md                   # This file
 ```
 
 ## API Endpoints
@@ -172,6 +219,30 @@ workshop-ui/
 | `/api/structured` | POST | Structured data extraction |
 | `/api/upload` | POST | File upload |
 | `/api/sample-tools` | GET | Get sample tool definitions |
+| `/api/texteditor/session` | POST | Create text editor session |
+| `/api/texteditor/files/{session_id}` | GET | List files in session |
+| `/api/texteditor/file/{session_id}/{path}` | GET | Get file content |
+| `/api/texteditor/history/{session_id}` | GET | Get edit history |
+| `/api/texteditor/chat` | POST | Chat with text editor tool |
+| `/api/codeexec/upload` | POST | Upload file via Files API |
+| `/api/codeexec/chat` | POST | Chat with code execution |
+| `/api/codeexec/download/{file_id}` | GET | Download generated file |
+| `/api/citations/chat` | POST | Chat with document citations |
+| `/api/eval/generate-dataset` | POST | Generate test cases |
+| `/api/eval/run` | POST | Run evaluation |
+
+## Running Tests
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_text_editor_tool.py -v
+
+# Run with coverage
+pytest tests/ --cov=app --cov-report=html
+```
 
 ## Tips
 
