@@ -20,23 +20,25 @@ Interactive web UI for testing and learning Claude API features from the Anthrop
 
 ```
 workshop-ui/
-├── main.py              # FastAPI backend
-├── requirements.txt     # Python dependencies
-├── static/
-│   ├── css/style.css    # Custom styles
-│   └── js/app.js        # Frontend JavaScript
-└── templates/
-    └── index.html       # Main HTML page
+├── main.py                 # FastAPI entry point (~70 lines)
+├── app/                    # Backend modules (routes, models, tools, utils)
+├── static/js/              # Frontend ES6 modules
+├── templates/index.html    # Main HTML page
+└── tests/                  # Pytest tests (50+ tests)
 ```
 
-**Features:**
+**Features (11 sections):**
 - **Basic Chat** - Simple conversation with Claude
 - **Prompt Engineering** - Test system prompts, temperature, max tokens
 - **Tool Use** - Pre-defined sample tools (calculator, time, weather)
+- **Text Editor Tool** - Claude's built-in file editing with sandbox
 - **File Upload** - Images and PDFs with drag & drop
+- **Code Execution** - Execute Python in Anthropic's sandbox (Beta)
 - **Extended Thinking** - See Claude's reasoning process
 - **Prompt Caching** - Test caching with statistics
 - **Structured Data** - Extract JSON using schemas
+- **Citations** - Document Q&A with source citations
+- **Prompt Evaluation** - LLM-as-Judge evaluation system
 - **Debug Panel** - View raw request/response JSON for each section
 
 **Note:** Compatible with Heroku inference API (uses non-streaming mode).
@@ -133,7 +135,8 @@ CLAUDE_MODEL="claude-sonnet-4-20250514"  # Optional, for mcp-claude
 cd workshop-ui
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-python main.py           # Open http://localhost:8000
+uvicorn main:app --reload --port 8000  # Open http://localhost:8000
+pytest tests/ -v                        # Run tests
 ```
 
 **For Jupyter notebooks (api-claude):**
