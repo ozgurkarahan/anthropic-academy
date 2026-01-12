@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a learning repository containing examples and projects from Anthropic Academy. It includes three main project areas:
+This is a learning repository containing examples and projects from Anthropic Academy. It includes four main project areas:
 
 1. **api-claude/** - Jupyter notebooks demonstrating Claude API usage patterns
 2. **claude-code/app_starter/** - MCP server with document processing tools
 3. **mcp-claude/** - CLI chat applications using MCP (Model Control Protocol)
+4. **workshop-ui/** - Interactive web UI for testing Claude API features
 
 ## Environment Setup
 
@@ -20,6 +21,48 @@ ANTHROPIC_API_KEY="your-api-key-here"
 **CRITICAL**: `.env` files are gitignored and must NEVER be committed to the repository.
 
 ## Project-Specific Commands
+
+### workshop-ui (Claude API Workshop)
+
+Interactive web UI for testing Claude API features. **See `workshop-ui/WORKSHOP_SPEC.md` for full specification.**
+
+**Setup:**
+```bash
+cd workshop-ui
+pip install fastapi uvicorn anthropic python-dotenv python-multipart
+# or: uv pip install -r requirements.txt
+```
+
+**Run the application:**
+```bash
+python main.py
+# Open http://localhost:8000
+```
+
+**Architecture:**
+- `main.py` - FastAPI backend with all API endpoints
+- `templates/index.html` - Single-page Bootstrap frontend
+- `static/js/app.js` - Frontend state management and handlers
+- `static/css/style.css` - Custom styles
+
+**Implemented Sections (11 total):**
+1. Basic Chat - Simple streaming chat
+2. Prompt Engineering - Custom system prompts, temperature
+3. Tool Use - Define and test tool calling
+4. **Text Editor Tool** - Claude's built-in file editing (sandbox)
+5. File Upload - Image and PDF analysis
+6. **Code Execution** - Python sandbox with Files API
+7. Extended Thinking - See Claude's reasoning
+8. Prompt Caching - Cache statistics display
+9. Structured Data - JSON schema extraction
+10. **Citations** - Document Q&A with source citations
+11. Prompt Evaluation - LLM-as-Judge testing
+
+**Key patterns:**
+- SSE streaming for all chat endpoints
+- Debug panels showing raw API requests/responses
+- CodeMirror 6 for code editing (lazy loaded)
+- Beta headers for experimental features
 
 ### claude-code/app_starter (MCP Document Tools Server)
 
