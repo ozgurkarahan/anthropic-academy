@@ -33,6 +33,10 @@ function loadEvalState() {
         if (savedDatasets) {
             state.evalDatasets = JSON.parse(savedDatasets);
         }
+        const savedActiveDataset = localStorage.getItem('eval_active_dataset');
+        if (savedActiveDataset && state.evalDatasets[savedActiveDataset]) {
+            state.evalActiveDataset = savedActiveDataset;
+        }
         const savedHistory = localStorage.getItem('eval_history');
         if (savedHistory) {
             state.evalHistory = JSON.parse(savedHistory);
@@ -46,6 +50,7 @@ function loadEvalState() {
 function saveEvalState() {
     try {
         localStorage.setItem('eval_datasets', JSON.stringify(state.evalDatasets));
+        localStorage.setItem('eval_active_dataset', state.evalActiveDataset || '');
         localStorage.setItem('eval_history', JSON.stringify(state.evalHistory));
     } catch (e) {
         console.error('Error saving eval state:', e);
@@ -112,31 +117,34 @@ function renderTestCases() {
     
     if (!state.evalActiveDataset || !state.evalDatasets[state.evalActiveDataset]) {
         container.innerHTML = '<div class="text-muted text-center py-3">Sélectionnez ou créez un dataset</div>';
+        document.getElementById('testCaseCount').textContent = '0';
         return;
     }
 
     const cases = state.evalDatasets[state.evalActiveDataset];
+    document.getElementById('testCaseCount').textContent = cases.length;
+    
     if (cases.length === 0) {
         container.innerHTML = '<div class="text-muted text-center py-3">Aucun cas de test. Ajoutez-en ou générez-en.</div>';
         return;
     }
 
     container.innerHTML = cases.map((tc, index) => `
-        <div class="test-case-item" data-index="${index}">
-            <div class="test-case-header">
-                <span class="test-case-number">#${index + 1}</span>
+        <div class="card mb-2 test-case-item" data-index="${index}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge bg-primary">#${index + 1}</span>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTestCase(${index})">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
-            <div class="test-case-content">
                 <div class="mb-2">
                     <strong>Input:</strong>
-                    <div class="test-case-text">${escapeHtml(tc.input)}</div>
+                    <div class="text-muted">${escapeHtml(tc.input)}</div>
                 </div>
                 <div>
                     <strong>Expected:</strong>
-                    <div class="test-case-text">${escapeHtml(tc.expected_output)}</div>
+                    <div class="text-muted">${escapeHtml(tc.expected_output)}</div>
                 </div>
             </div>
         </div>
@@ -149,16 +157,25 @@ function addTestCase() {
         return;
     }
 
-    const input = prompt('Input du cas de test:');
-    if (!input) return;
-
-    const expected = prompt('Output attendu:');
-    if (!expected) return;
+    const inputEl = document.getElementById('newTestInput');
+    const expectedEl = document.getElementById('newTestExpected');
+    
+    const input = inputEl.value.trim();
+    const expected = expectedEl.value.trim();
+    
+    if (!input || !expected) {
+        showError('Veuillez remplir les deux champs', 'testCasesList');
+        return;
+    }
 
     state.evalDatasets[state.evalActiveDataset].push({
         input: input,
         expected_output: expected
     });
+    
+    // Clear the form fields
+    inputEl.value = '';
+    expectedEl.value = '';
     
     saveEvalState();
     refreshDatasetSelect();
@@ -275,6 +292,12 @@ async function runEvaluation() {
             if (state.evalHistory.length > 20) state.evalHistory.pop();
             saveEvalState();
             renderEvalHistory();
+            
+            // Switch to Results tab
+            const resultsTab = document.getElementById('results-tab');
+            if (resultsTab) {
+                resultsTab.click();
+            }
         } else {
             showError(data.error || 'Erreur lors de l\'évaluation', 'evalResultsContainer');
         }
@@ -291,53 +314,111 @@ function renderEvalResults(data) {
     const stats = data.stats;
 
     let html = `
-        <div class="eval-summary mb-4">
-            <div class="row">
+        <!-- Stats Cards -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">${stats.avg_score.toFixed(2)}/5</h3>
+                        <small class="text-muted">Score Moyen</small>
+                    </div>
+                </div>
+            </div>
                 <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.avg_score.toFixed(2)}/5</div>
-                        <div class="stat-label">Score moyen</div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">${stats.pass_rate.toFixed(1)}%</h3>
+                        <small class="text-muted">Pass Rate (≥4)</small>
+                    </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.pass_rate.toFixed(1)}%</div>
-                        <div class="stat-label">Taux de réussite</div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">${stats.passed}/${stats.total}</h3>
+                        <small class="text-muted">Tests réussis</small>
+                    </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.passed}/${stats.total}</div>
-                        <div class="stat-label">Tests réussis</div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">
+                            <button class="btn btn-sm btn-outline-secondary" id="exportResultsBtn">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </h3>
+                        <small class="text-muted">Export JSON</small>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Results List -->
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Détail des résultats</span>
+                <select class="form-select form-select-sm" id="resultsFilter" style="width: auto; display: inline-block;">
+                    <option value="all">Tous</option>
+                    <option value="pass">Pass (≥4)</option>
+                    <option value="fail">Fail (<4)</option>
+                </select>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
         <div class="eval-results-list">
     `;
 
     data.results.forEach((result, index) => {
-        const scoreClass = result.score >= 4 ? 'score-pass' : result.score >= 3 ? 'score-warn' : 'score-fail';
+        const scoreClass = result.score >= 4 ? 'success' : result.score >= 3 ? 'warning' : 'danger';
         html += `
-            <div class="eval-result-item ${scoreClass}" data-score="${result.score}">
-                <div class="result-header">
-                    <span class="result-number">#${index + 1}</span>
-                    <span class="result-score">${result.score}/5</span>
+            <div class="card mb-2 border-${scoreClass} eval-result-item" data-score="${result.score}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-secondary">#${index + 1}</span>
+                        <span class="badge bg-${scoreClass}">${result.score}/5</span>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Input:</strong>
+                        <div class="text-muted small">${escapeHtml(result.input)}</div>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Expected:</strong>
+                        <div class="text-muted small">${escapeHtml(result.expected_output)}</div>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Actual:</strong>
+                        <div class="text-muted small">${escapeHtml(result.actual_output)}</div>
+                    </div>
+                    <div class="mb-2">
+                        <strong>Justification:</strong>
+                        <div class="text-muted small">${escapeHtml(result.justification)}</div>
+                    </div>
+                    ${result.strengths && result.strengths.length > 0 ? `
+                        <div class="text-success small">
+                            <strong>Forces:</strong> ${result.strengths.map(s => escapeHtml(s)).join(', ')}
+                        </div>
+                    ` : ''}
+                    ${result.weaknesses && result.weaknesses.length > 0 ? `
+                        <div class="text-danger small">
+                            <strong>Faiblesses:</strong> ${result.weaknesses.map(w => escapeHtml(w)).join(', ')}
                 </div>
-                <div class="result-content">
-                    <div class="mb-2"><strong>Input:</strong> ${escapeHtml(result.input)}</div>
-                    <div class="mb-2"><strong>Expected:</strong> ${escapeHtml(result.expected_output)}</div>
-                    <div class="mb-2"><strong>Actual:</strong> ${escapeHtml(result.actual_output)}</div>
-                    <div class="mb-2"><strong>Justification:</strong> ${escapeHtml(result.justification)}</div>
-                    ${result.strengths.length > 0 ? `<div class="text-success"><strong>Forces:</strong> ${result.strengths.join(', ')}</div>` : ''}
-                    ${result.weaknesses.length > 0 ? `<div class="text-danger"><strong>Faiblesses:</strong> ${result.weaknesses.join(', ')}</div>` : ''}
+                    ` : ''}
                 </div>
             </div>
         `;
     });
 
-    html += '</div>';
+    html += `
+                </div>
+            </div>
+        </div>
+    `;
+    
     container.innerHTML = html;
+    
+    // Re-attach the export button listener
+    document.getElementById('exportResultsBtn').addEventListener('click', exportResults);
+    document.getElementById('resultsFilter').addEventListener('change', filterResults);
 }
 
 function filterResults() {
@@ -365,13 +446,29 @@ function renderEvalHistory() {
         return;
     }
 
-    container.innerHTML = state.evalHistory.map((entry, index) => `
-        <div class="history-item">
-            <div class="history-date">${new Date(entry.timestamp).toLocaleString()}</div>
-            <div class="history-dataset">${escapeHtml(entry.dataset)}</div>
-            <div class="history-stats">
-                Score: ${entry.stats.avg_score.toFixed(2)} | 
-                Réussite: ${entry.stats.pass_rate.toFixed(1)}%
+    // Filter out invalid entries and render valid ones
+    const validEntries = state.evalHistory.filter(entry => 
+        entry && entry.stats && typeof entry.stats.avg_score === 'number'
+    );
+
+    if (validEntries.length === 0) {
+        container.innerHTML = '<div class="text-muted text-center py-3">Aucun historique valide</div>';
+        return;
+    }
+
+    container.innerHTML = validEntries.map((entry, index) => `
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div><strong>${escapeHtml(entry.dataset || 'Dataset inconnu')}</strong></div>
+                        <small class="text-muted">${new Date(entry.timestamp).toLocaleString()}</small>
+                    </div>
+                    <div class="text-end">
+                        <div>Score: <strong>${entry.stats.avg_score.toFixed(2)}</strong></div>
+                        <small class="text-muted">Réussite: ${entry.stats.pass_rate.toFixed(1)}%</small>
+                    </div>
+                </div>
             </div>
         </div>
     `).join('');
@@ -443,10 +540,38 @@ function updateEvalTabInfo() {
         ? state.evalDatasets[state.evalActiveDataset]?.length || 0 
         : 0;
     
-    // Update any UI elements that show eval status
-    const badge = document.querySelector('[data-section="evaluation"] .badge');
+    // Update badge in sidebar
+    const badge = document.querySelector('[data-section="evaluationSection"] .badge');
     if (badge) {
         badge.textContent = datasetCount;
+    }
+    
+    // Update evaluation tab info
+    const evalDatasetNameEl = document.getElementById('evalDatasetName');
+    const evalTestCountEl = document.getElementById('evalTestCount');
+    const runEvaluationBtn = document.getElementById('runEvaluationBtn');
+    
+    if (evalDatasetNameEl) {
+        if (state.evalActiveDataset) {
+            evalDatasetNameEl.textContent = state.evalActiveDataset;
+            evalDatasetNameEl.classList.remove('text-muted');
+        } else {
+            evalDatasetNameEl.textContent = 'Aucun sélectionné';
+            evalDatasetNameEl.classList.add('text-muted');
+        }
+    }
+    
+    if (evalTestCountEl) {
+        evalTestCountEl.textContent = testCaseCount;
+    }
+    
+    // Enable/disable run button based on whether we have test cases
+    if (runEvaluationBtn) {
+        if (state.evalActiveDataset && testCaseCount > 0) {
+            runEvaluationBtn.disabled = false;
+        } else {
+            runEvaluationBtn.disabled = true;
+        }
     }
 }
 
